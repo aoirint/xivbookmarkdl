@@ -8,6 +8,7 @@ load_dotenv()
 
 REFRESH_TOKEN = os.environ['REFRESH_TOKEN']
 USER_ID = os.environ['USER_ID']
+ROOT_DIR = os.environ['ROOT_DIR']
 
 api = AppPixivAPI()
 
@@ -22,7 +23,7 @@ while True:
         pages = illust.meta_pages 
         user = illust.user
 
-        illust_dir = Path('illusts', str(user.id), str(illust.id))
+        illust_dir = Path(ROOT_DIR, str(user.id), str(illust.id))
         illust_dir.mkdir(exist_ok=True, parents=True)
 
         print(user.id, user.name)
