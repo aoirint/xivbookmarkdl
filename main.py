@@ -42,5 +42,7 @@ while True:
     next_qs = api.parse_qs(result.next_url)
     if not next_qs:
         break
+
+    time.sleep(1)
     result = api.user_bookmarks_illust(**next_qs)
 
