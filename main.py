@@ -59,14 +59,14 @@ while True:
 print(f'New Illusts: {len(new_illusts_desc)}')
 
 # download new illust in asc order
-new_illusts_asc = reversed(new_illusts_desc)
-for illust in new_illusts_asc:
+new_illusts_asc = list(reversed(new_illusts_desc))
+for illust_index, illust in enumerate(new_illusts_asc):
     user = illust.user
 
     illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
     illust_dir.mkdir(exist_ok=True, parents=True)
 
-    print(user.id, user.name, illust.id, illust.title)
+    print(f'{illust_index}/{len(new_illusts_asc)}', user.id, user.name, illust.id, illust.title)
     if illust.meta_single_page:
         image_url = illust.meta_single_page.original_image_url
         print(image_url)
