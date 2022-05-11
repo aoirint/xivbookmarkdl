@@ -5,7 +5,7 @@ from pixivpy3 import *
 import time
 import tempfile
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import traceback
 
 load_dotenv()
@@ -32,7 +32,7 @@ downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user
 
 result = api.user_bookmarks_illust(user_id=USER_ID, req_auth=True)
 
-updated_at = datetime.now()
+updated_at_utc = datetime.now(timezone.utc) # utc aware current time
 
 # search bookmarked illusts in desc order
 new_illusts_desc = []
@@ -94,7 +94,7 @@ for illust_index, illust in enumerate(new_illusts_asc):
                 time.sleep(1)
 
     meta_path = illust_dir / 'illust.json'
-    found_at = updated_at
+    found_at_utc = updated_at_utc
     if meta_path.exists():
         with open(meta_path, 'r', encoding='utf-8') as fp:
             old_meta = {}
@@ -105,10 +105,10 @@ for illust_index, illust in enumerate(new_illusts_asc):
                 traceback.print_exc()
 
             if 'found_at' in old_meta:
-                found_at = datetime.fromisoformat(old_meta['found_at'])
+                found_at_utc = datetime.fromisoformat(old_meta['found_at'])
     with open(meta_path, 'w', encoding='utf-8') as fp:
         json.dump({
             'illust': illust,
-            'found_at': found_at.isoformat(),
-            'updated_at': updated_at.isoformat(),
+            'found_at': found_at_utc.isoformat(),
+            'updated_at': updated_at_utc.isoformat(),
         }, fp, ensure_ascii=False)
