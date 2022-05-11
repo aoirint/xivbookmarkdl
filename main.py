@@ -120,6 +120,7 @@ for illust_index, illust in enumerate(new_illusts_asc):
 
             if 'found_at' in old_meta:
                 found_at_utc = datetime.fromisoformat(old_meta['found_at'])
+
     with open(meta_path, 'w', encoding='utf-8') as fp:
         json.dump({
             'illust': illust,
