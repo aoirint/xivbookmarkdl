@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from pixivpy3 import *
 import time
 import tempfile
+import json
+from datetime import datetime
 
 load_dotenv()
 
@@ -21,6 +23,8 @@ downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded
 downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
 
 result = api.user_bookmarks_illust(user_id=USER_ID, req_auth=True)
+
+updated_at = datetime.now()
 
 new_illusts_desc = []
 while True:
@@ -41,7 +45,7 @@ while True:
 
         page_new_illusts_desc.append(illust)
 
-    # if no new illust in newest page, stop paging (asc download)
+    # if no new illust in the current page, stop paging (desc search, asc download)
     if len(page_new_illusts_desc) == 0:
         print('No new illust found in page')
         break
@@ -79,3 +83,17 @@ for illust_index, illust in enumerate(new_illusts_asc):
             print(image_url)
             if api.download(image_url, path=illust_dir):
                 time.sleep(1)
+
+    meta_path = illust_dir / 'illust.json'
+    found_at = updated_at
+    if meta_path.exists():
+        with open(meta_path, 'r', encoding='utf-8') as fp:
+            old_meta = json.load(fp)
+            found_at = old_meta.get('found_at', found_at)
+
+    with open(meta_path, 'w', encoding='utf-8') as fp:
+        json.dump({
+            'illust': illust,
+            'found_at': found_at.isoformat(),
+            'updated_at': updated_at.isoformat(),
+        }, fp, ensure_ascii=False)
