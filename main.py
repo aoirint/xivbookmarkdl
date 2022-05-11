@@ -13,6 +13,13 @@ REFRESH_TOKEN = os.environ['REFRESH_TOKEN']
 USER_ID = os.environ['USER_ID']
 ROOT_DIR = os.environ['ROOT_DIR']
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--recrawl', action='store_true')
+args = parser.parse_args()
+
+IGNORE_EXISTENCE = args.recrawl
+
 api = AppPixivAPI()
 
 api.auth(refresh_token=REFRESH_TOKEN)
@@ -26,6 +33,7 @@ result = api.user_bookmarks_illust(user_id=USER_ID, req_auth=True)
 
 updated_at = datetime.now()
 
+# search bookmarked illusts in desc order
 new_illusts_desc = []
 while True:
     illusts = result.illusts
@@ -35,7 +43,7 @@ while True:
         user = illust.user
 
         illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
-        if illust_dir.exists():
+        if illust_dir.exists() and not IGNORE_EXISTENCE:
             # Detect difference addition & download continuously
             num_local_pages = len(list(illust_dir.iterdir()))
             num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
@@ -89,7 +97,8 @@ for illust_index, illust in enumerate(new_illusts_asc):
     if meta_path.exists():
         with open(meta_path, 'r', encoding='utf-8') as fp:
             old_meta = json.load(fp)
-            found_at = old_meta.get('found_at', found_at)
+            if 'found_at' in old_meta:
+                found_at = datetime.fromisostring(old_meta['found_at'])
 
     with open(meta_path, 'w', encoding='utf-8') as fp:
         json.dump({
