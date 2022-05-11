@@ -98,7 +98,7 @@ for illust_index, illust in enumerate(new_illusts_asc):
         with open(meta_path, 'r', encoding='utf-8') as fp:
             old_meta = json.load(fp)
             if 'found_at' in old_meta:
-                found_at = datetime.fromisostring(old_meta['found_at'])
+                found_at = datetime.fromisoformat(old_meta['found_at'])
 
     with open(meta_path, 'w', encoding='utf-8') as fp:
         json.dump({
