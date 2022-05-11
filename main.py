@@ -6,6 +6,7 @@ import time
 import tempfile
 import json
 from datetime import datetime
+import traceback
 
 load_dotenv()
 
@@ -96,10 +97,15 @@ for illust_index, illust in enumerate(new_illusts_asc):
     found_at = updated_at
     if meta_path.exists():
         with open(meta_path, 'r', encoding='utf-8') as fp:
-            old_meta = json.load(fp)
+            old_meta = {}
+
+            try:
+                old_meta = json.load(fp)
+            except ValueError: # json.decoder.JSONDecodeError
+                traceback.print_exc()
+
             if 'found_at' in old_meta:
                 found_at = datetime.fromisoformat(old_meta['found_at'])
-
     with open(meta_path, 'w', encoding='utf-8') as fp:
         json.dump({
             'illust': illust,
