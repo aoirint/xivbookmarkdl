@@ -20,6 +20,15 @@ parser.add_argument('--recrawl', action='store_true')
 args = parser.parse_args()
 
 IGNORE_EXISTENCE = args.recrawl
+IMAGE_EXTS = [
+    '.jpg',
+    '.jpeg',
+    '.png',
+    '.gif',
+    '.webp',
+    '.mp4',
+    '.webm',
+]
 
 api = AppPixivAPI()
 
@@ -46,7 +55,12 @@ while True:
         illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
         if illust_dir.exists() and not IGNORE_EXISTENCE:
             # Detect difference addition & download continuously
-            num_local_pages = len(list(illust_dir.iterdir()))
+            files_in_illust_dir = list(illust_dir.iterdir())
+
+            # remove program meta file, os meta file entries
+            images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
+
+            num_local_pages = len(images_in_illust_dir)
             num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
 
             if num_local_pages == num_remote_pages:
