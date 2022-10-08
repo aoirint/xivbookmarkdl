@@ -39,7 +39,6 @@ class FileIllustMetaRepo(IllustMetaRepo):
 
     def get_illust_meta(self, illust_id: int, user_id: int) -> Optional[IllustMeta]:
         illust_dir = Path(self.root_dir_path, str(user_id), str(illust_id))
-        illust_dir.mkdir(exist_ok=True, parents=True)
 
         meta_path = illust_dir / 'illust.json'
         if not meta_path.exists():
