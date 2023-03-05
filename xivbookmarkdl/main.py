@@ -8,12 +8,15 @@ import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
-
-REFRESH_TOKEN = os.environ['XIVBKMDL_REFRESH_TOKEN']
-USER_ID = os.environ['XIVBKMDL_USER_ID']
-ROOT_DIR = os.environ['XIVBKMDL_ROOT_DIR']
+from pydantic import BaseModel
 
 UTC = timezone.utc
+
+class BookmarkConfig(BaseModel):
+  root_dir: Path
+  refresh_token: str
+  user_id: int
+  recrawl: bool
 
 @dataclass
 class IllustMeta:
@@ -82,108 +85,139 @@ class FileIllustMetaRepo(IllustMetaRepo):
             }, fp, ensure_ascii=False)
 
 
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument('--recrawl', action='store_true')
-args = parser.parse_args()
+def __run_bookmark(config: BookmarkConfig):
+    IGNORE_EXISTENCE = config.recrawl
+    IMAGE_EXTS = [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.webp',
+        '.mp4',
+        '.webm',
+    ]
 
-IGNORE_EXISTENCE = args.recrawl
-IMAGE_EXTS = [
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.gif',
-    '.webp',
-    '.mp4',
-    '.webm',
-]
+    api = AppPixivAPI()
 
-api = AppPixivAPI()
+    api.auth(refresh_token=config.refresh_token)
 
-api.auth(refresh_token=REFRESH_TOKEN)
+    illust_root_dir = Path(config.root_dir)
 
-illust_root_dir = Path(ROOT_DIR)
+    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
 
-illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
+    downloaded_user_ids = set([path.name for path in illust_root_dir.iterdir()])
+    downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(illust_root_dir, user_id).iterdir()])
+    downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
 
-downloaded_user_ids = set([path.name for path in illust_root_dir.iterdir()])
-downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(illust_root_dir, user_id).iterdir()])
-downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
+    result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
 
-result = api.user_bookmarks_illust(user_id=USER_ID, req_auth=True)
+    updated_at_utc = datetime.now(UTC) # utc aware current time
 
-updated_at_utc = datetime.now(UTC) # utc aware current time
+    # search bookmarked illusts in desc order
+    new_illusts_desc = []
+    while True:
+        illusts = result.illusts
+        page_new_illusts_desc = []
 
-# search bookmarked illusts in desc order
-new_illusts_desc = []
-while True:
-    illusts = result.illusts
-    page_new_illusts_desc = []
+        for illust in illusts:
+            user = illust.user
 
-    for illust in illusts:
+            old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
+            if old_meta is not None:
+                illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
+                if illust_dir.exists() and not IGNORE_EXISTENCE:
+                    # Detect difference addition & download continuously
+                    files_in_illust_dir = list(illust_dir.iterdir())
+
+                    # remove program meta file, os meta file entries
+                    images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
+
+                    num_local_pages = len(images_in_illust_dir)
+                    num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
+
+                    if num_local_pages == num_remote_pages:
+                        continue
+
+            page_new_illusts_desc.append(illust)
+
+        # if no new illust in the current page, stop paging (desc search, asc download)
+        if len(page_new_illusts_desc) == 0:
+            print('No new illust found in page')
+            break
+
+        new_illusts_desc.extend(page_new_illusts_desc)
+        print(f'Paging (found: {len(new_illusts_desc)})')
+
+        next_qs = api.parse_qs(result.next_url)
+        if not next_qs:
+            break
+
+        time.sleep(1)
+        result = api.user_bookmarks_illust(**next_qs)
+
+    print(f'New Illusts: {len(new_illusts_desc)}')
+
+    # download new illust in asc order
+    new_illusts_asc = list(reversed(new_illusts_desc))
+    for illust_index, illust in enumerate(new_illusts_asc):
         user = illust.user
 
-        old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
-        if old_meta is not None:
-            illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
-            if illust_dir.exists() and not IGNORE_EXISTENCE:
-                # Detect difference addition & download continuously
-                files_in_illust_dir = list(illust_dir.iterdir())
+        illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
+        illust_dir.mkdir(exist_ok=True, parents=True)
 
-                # remove program meta file, os meta file entries
-                images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
-
-                num_local_pages = len(images_in_illust_dir)
-                num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
-
-                if num_local_pages == num_remote_pages:
-                    continue
-
-        page_new_illusts_desc.append(illust)
-
-    # if no new illust in the current page, stop paging (desc search, asc download)
-    if len(page_new_illusts_desc) == 0:
-        print('No new illust found in page')
-        break
-
-    new_illusts_desc.extend(page_new_illusts_desc)
-    print(f'Paging (found: {len(new_illusts_desc)})')
-
-    next_qs = api.parse_qs(result.next_url)
-    if not next_qs:
-        break
-
-    time.sleep(1)
-    result = api.user_bookmarks_illust(**next_qs)
-
-print(f'New Illusts: {len(new_illusts_desc)}')
-
-# download new illust in asc order
-new_illusts_asc = list(reversed(new_illusts_desc))
-for illust_index, illust in enumerate(new_illusts_asc):
-    user = illust.user
-
-    illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
-    illust_dir.mkdir(exist_ok=True, parents=True)
-
-    print(f'{illust_index}/{len(new_illusts_asc)}', user.id, user.name, illust.id, illust.title)
-    if illust.meta_single_page:
-        image_url = illust.meta_single_page.original_image_url
-        print(image_url)
-        if api.download(image_url, path=illust_dir):
-            time.sleep(1)
-    else:
-        pages = illust.meta_pages 
-        for page in pages:
-            image_url = page.image_urls.original
+        print(f'{illust_index}/{len(new_illusts_asc)}', user.id, user.name, illust.id, illust.title)
+        if illust.meta_single_page:
+            image_url = illust.meta_single_page.original_image_url
             print(image_url)
             if api.download(image_url, path=illust_dir):
                 time.sleep(1)
+        else:
+            pages = illust.meta_pages 
+            for page in pages:
+                image_url = page.image_urls.original
+                print(image_url)
+                if api.download(image_url, path=illust_dir):
+                    time.sleep(1)
 
-    illust_meta = IllustMeta(
-        illust_id=int(illust.id),
-        user_id=int(user.id),
-        meta_dict=illust,
-        fetched_at=updated_at_utc,
+        illust_meta = IllustMeta(
+            illust_id=int(illust.id),
+            user_id=int(user.id),
+            meta_dict=illust,
+            fetched_at=updated_at_utc,
+        )
+        illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
+
+
+def run_bookmark(args):
+    __run_bookmark(
+        config=BookmarkConfig(
+            root_dir=args.root_dir,
+            refresh_token=args.refresh_token,
+            user_id=args.user_id,
+            recrawl=args.recrawl,
+        )
     )
-    illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers()
+    subparser_bookmark = subparsers.add_parser('bookmark')
+    subparser_bookmark.add_argument('--root_dir', type=Path, default=os.environ.get('XIVBKMDL_ROOT_DIR'))
+    subparser_bookmark.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
+    subparser_bookmark.add_argument('--user_id', type=int, default=os.environ.get('XIVBKMDL_USER_ID'))
+    subparser_bookmark.add_argument('--recrawl', action='store_true')
+    subparser_bookmark.set_defaults(handler=run_bookmark)
+
+    args = parser.parse_args()
+
+    if hasattr(args, 'handler'):
+        args.handler(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == '__main__':
+    main()
