@@ -157,8 +157,16 @@ def download_illusts(
         if not next_qs:
             break
 
-        time.sleep(1)
-        result = next_func(**next_qs)
+        time.sleep(3)
+
+        for retry_index in range(3):
+            next_result = next_func(**next_qs)
+            if next_result.illusts is not None:
+                break
+            print(next_result)
+            time.sleep(10 * (retry_index + 1))
+
+        result = next_result
 
     print(f'New Illusts: {len(new_illusts_desc)}')
 
