@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 from pixivpy3 import *
 import time
 import json
@@ -10,11 +9,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
-load_dotenv()
-
-REFRESH_TOKEN = os.environ['REFRESH_TOKEN']
-USER_ID = os.environ['USER_ID']
-ROOT_DIR = os.environ['ROOT_DIR']
+REFRESH_TOKEN = os.environ['XIVBKMDL_REFRESH_TOKEN']
+USER_ID = os.environ['XIVBKMDL_USER_ID']
+ROOT_DIR = os.environ['XIVBKMDL_ROOT_DIR']
 
 UTC = timezone.utc
 
