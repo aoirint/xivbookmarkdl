@@ -93,7 +93,7 @@ class FileIllustMetaRepo(IllustMetaRepo):
             }, fp, ensure_ascii=False)
 
 
-def download_illusts(
+def download_illusts_desc(
     api: AppPixivAPI,
     output_dir: Path,
     first_result: Any,
@@ -201,6 +201,103 @@ def download_illusts(
         illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
 
 
+
+def download_illusts_asc(
+    api: AppPixivAPI,
+    output_dir: Path,
+    first_result: Any,
+    next_func: Callable,
+    illust_meta_repo: IllustMetaRepo,
+    ignore_existence: bool,
+    updated_at_utc: datetime,
+    download_interval: float = 1.0,
+    page_interval: float = 3.0,
+    retry_interval: float = 10.0,
+):
+    IMAGE_EXTS = [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.webp',
+        '.mp4',
+        '.webm',
+    ]
+
+    # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
+    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])
+    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
+
+    result = first_result
+
+    # search and download illusts in asc order
+    page_index = 0
+    while True:
+        illusts = result.illusts
+
+        print(f'Page {page_index} (found: {len(illusts)})')
+
+        for illust_index, illust in enumerate(illusts):
+            user = illust.user
+
+            old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
+            if old_meta is not None:
+                illust_dir = Path(output_dir, str(user.id), str(illust.id))
+                if illust_dir.exists() and not ignore_existence:
+                    # Detect difference addition & download continuously
+                    files_in_illust_dir = list(illust_dir.iterdir())
+
+                    # remove program meta file, os meta file entries
+                    images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
+
+                    num_local_pages = len(images_in_illust_dir)
+                    num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
+
+                    if num_local_pages == num_remote_pages:
+                        continue
+
+            illust_dir = Path(output_dir, str(user.id), str(illust.id))
+            illust_dir.mkdir(exist_ok=True, parents=True)
+
+            print(f'Page {page_index}', f'Index {illust_index}/{len(illusts)}', user.id, user.name, illust.id, illust.title)
+            if illust.meta_single_page:
+                image_url = illust.meta_single_page.original_image_url
+                print(image_url)
+                if api.download(image_url, path=illust_dir):
+                    time.sleep(download_interval)
+            else:
+                pages = illust.meta_pages 
+                for page in pages:
+                    image_url = page.image_urls.original
+                    print(image_url)
+                    if api.download(image_url, path=illust_dir):
+                        time.sleep(download_interval)
+
+            illust_meta = IllustMeta(
+                illust_id=int(illust.id),
+                user_id=int(user.id),
+                meta_dict=illust,
+                fetched_at=updated_at_utc,
+            )
+            illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
+
+        next_qs = api.parse_qs(result.next_url)
+        if not next_qs:
+            break
+
+        time.sleep(page_interval)
+
+        for retry_index in range(3):
+            next_result = next_func(**next_qs)
+            if next_result.illusts is not None:
+                break
+            print(next_result)
+            time.sleep(retry_interval * (retry_index + 1))
+
+        result = next_result
+        page_index += 1
+
+
 def __run_bookmark(config: BookmarkConfig):
     api = AppPixivAPI()
 
@@ -213,7 +310,7 @@ def __run_bookmark(config: BookmarkConfig):
 
     updated_at_utc = datetime.now(UTC) # utc aware current time
 
-    download_illusts(
+    download_illusts_desc(
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
@@ -243,11 +340,11 @@ def __run_search_tag(config: SearchTagConfig):
     illust_root_dir = Path(config.root_dir)
     illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
 
-    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', req_auth=True)
+    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', sort='date_asc', req_auth=True)
 
     updated_at_utc = datetime.now(UTC) # utc aware current time
 
-    download_illusts(
+    download_illusts_asc(
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
