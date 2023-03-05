@@ -245,7 +245,7 @@ def download_illusts_asc(
     while True:
         illusts = result.illusts
 
-        print(f'Page {page_index} (found: {len(illusts)})')
+        print(f'Page {page_index+1} (found: {len(illusts)})')
 
         for illust_index, illust in enumerate(illusts):
             user = illust.user
@@ -269,7 +269,7 @@ def download_illusts_asc(
             illust_dir = Path(output_dir, str(user.id), str(illust.id))
             illust_dir.mkdir(exist_ok=True, parents=True)
 
-            print(f'Page {page_index}', f'Index {illust_index}/{len(illusts)}', user.id, user.name, illust.id, illust.title)
+            print(f'Page {page_index+1}', f'Index {illust_index+1}/{len(illusts)}', user.id, user.name, illust.id, illust.title)
             if illust.meta_single_page:
                 image_url = illust.meta_single_page.original_image_url
                 print(image_url)
