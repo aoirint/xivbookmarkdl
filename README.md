@@ -38,7 +38,7 @@ XIVBKMDL_USER_ID=
 XIVBKMDL_ROOT_DIR=/data
 ```
 
-## 5. Execute download
+### 5. Execute download
 
 ```shell
 docker run --rm --env-file ./.env -v "./data:/data" aoirint/xivbookmarkdl
