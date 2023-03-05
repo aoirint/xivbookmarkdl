@@ -13,17 +13,23 @@ from pydantic import BaseModel
 UTC = timezone.utc
 
 class BookmarkConfig(BaseModel):
-  root_dir: Path
-  refresh_token: str
-  user_id: int
-  recrawl: bool
+    root_dir: Path
+    refresh_token: str
+    user_id: int
+    recrawl: bool
+    download_interval: float
+    page_interval: float
+    retry_interval: float
 
 
 class SearchTagConfig(BaseModel):
-  root_dir: Path
-  refresh_token: str
-  keyword: str
-  recrawl: bool
+    root_dir: Path
+    refresh_token: str
+    keyword: str
+    recrawl: bool
+    download_interval: float
+    page_interval: float
+    retry_interval: float
 
 
 @dataclass
@@ -101,6 +107,9 @@ def download_illusts_desc(
     illust_meta_repo: IllustMetaRepo,
     ignore_existence: bool,
     updated_at_utc: datetime,
+    download_interval: float = 1.0,
+    page_interval: float = 3.0,
+    retry_interval: float = 10.0,
 ):
     IMAGE_EXTS = [
         '.jpg',
@@ -157,14 +166,14 @@ def download_illusts_desc(
         if not next_qs:
             break
 
-        time.sleep(3)
+        time.sleep(page_interval)
 
         for retry_index in range(3):
             next_result = next_func(**next_qs)
             if next_result.illusts is not None:
                 break
             print(next_result)
-            time.sleep(10 * (retry_index + 1))
+            time.sleep(retry_interval * (retry_index + 1))
 
         result = next_result
 
@@ -183,14 +192,14 @@ def download_illusts_desc(
             image_url = illust.meta_single_page.original_image_url
             print(image_url)
             if api.download(image_url, path=illust_dir):
-                time.sleep(1)
+                time.sleep(download_interval)
         else:
             pages = illust.meta_pages 
             for page in pages:
                 image_url = page.image_urls.original
                 print(image_url)
                 if api.download(image_url, path=illust_dir):
-                    time.sleep(1)
+                    time.sleep(download_interval)
 
         illust_meta = IllustMeta(
             illust_id=int(illust.id),
@@ -328,6 +337,9 @@ def run_bookmark(args):
             refresh_token=args.refresh_token,
             user_id=args.user_id,
             recrawl=args.recrawl,
+            download_interval=args.download_interval,
+            page_interval=args.page_interval,
+            retry_interval=args.retry_interval,
         )
     )
 
@@ -362,6 +374,9 @@ def run_search_tag(args):
             refresh_token=args.refresh_token,
             keyword=args.keyword,
             recrawl=args.recrawl,
+            download_interval=args.download_interval,
+            page_interval=args.page_interval,
+            retry_interval=args.retry_interval,
         )
     )
 
@@ -376,6 +391,9 @@ def main():
     subparser_bookmark.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
     subparser_bookmark.add_argument('--user_id', type=int, default=os.environ.get('XIVBKMDL_USER_ID'))
     subparser_bookmark.add_argument('--recrawl', action='store_true')
+    subparser_bookmark.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL'))
+    subparser_bookmark.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL'))
+    subparser_bookmark.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL'))
     subparser_bookmark.set_defaults(handler=run_bookmark)
 
     subparser_search_tag = subparsers.add_parser('search_tag')
@@ -383,6 +401,9 @@ def main():
     subparser_search_tag.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
     subparser_search_tag.add_argument('--keyword', type=str, default=os.environ.get('XIVBKMDL_KEYWORD'))
     subparser_search_tag.add_argument('--recrawl', action='store_true')
+    subparser_search_tag.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL'))
+    subparser_search_tag.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL'))
+    subparser_search_tag.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL'))
     subparser_search_tag.set_defaults(handler=run_search_tag)
 
     args = parser.parse_args()
