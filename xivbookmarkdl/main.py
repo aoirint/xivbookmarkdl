@@ -85,8 +85,14 @@ class FileIllustMetaRepo(IllustMetaRepo):
             }, fp, ensure_ascii=False)
 
 
-def __run_bookmark(config: BookmarkConfig):
-    IGNORE_EXISTENCE = config.recrawl
+def download_illusts(
+    api: AppPixivAPI,
+    output_dir: Path,
+    first_result: Any,
+    illust_meta_repo: IllustMetaRepo,
+    ignore_existence: bool,
+    updated_at_utc: datetime,
+):
     IMAGE_EXTS = [
         '.jpg',
         '.jpeg',
@@ -97,23 +103,13 @@ def __run_bookmark(config: BookmarkConfig):
         '.webm',
     ]
 
-    api = AppPixivAPI()
+    # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
+    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])
+    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
 
-    api.auth(refresh_token=config.refresh_token)
+    result = first_result
 
-    illust_root_dir = Path(config.root_dir)
-
-    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
-
-    downloaded_user_ids = set([path.name for path in illust_root_dir.iterdir()])
-    downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(illust_root_dir, user_id).iterdir()])
-    downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
-
-    result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
-
-    updated_at_utc = datetime.now(UTC) # utc aware current time
-
-    # search bookmarked illusts in desc order
+    # search illusts in desc order
     new_illusts_desc = []
     while True:
         illusts = result.illusts
@@ -124,8 +120,8 @@ def __run_bookmark(config: BookmarkConfig):
 
             old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
             if old_meta is not None:
-                illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
-                if illust_dir.exists() and not IGNORE_EXISTENCE:
+                illust_dir = Path(output_dir, str(user.id), str(illust.id))
+                if illust_dir.exists() and not ignore_existence:
                     # Detect difference addition & download continuously
                     files_in_illust_dir = list(illust_dir.iterdir())
 
@@ -162,7 +158,7 @@ def __run_bookmark(config: BookmarkConfig):
     for illust_index, illust in enumerate(new_illusts_asc):
         user = illust.user
 
-        illust_dir = Path(illust_root_dir, str(user.id), str(illust.id))
+        illust_dir = Path(output_dir, str(user.id), str(illust.id))
         illust_dir.mkdir(exist_ok=True, parents=True)
 
         print(f'{illust_index}/{len(new_illusts_asc)}', user.id, user.name, illust.id, illust.title)
@@ -186,6 +182,28 @@ def __run_bookmark(config: BookmarkConfig):
             fetched_at=updated_at_utc,
         )
         illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
+
+
+def __run_bookmark(config: BookmarkConfig):
+    api = AppPixivAPI()
+
+    api.auth(refresh_token=config.refresh_token)
+
+    illust_root_dir = Path(config.root_dir)
+    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
+
+    result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
+
+    updated_at_utc = datetime.now(UTC) # utc aware current time
+
+    download_illusts(
+        api=api,
+        output_dir=illust_root_dir,
+        first_result=result,
+        illust_meta_repo=illust_meta_repo,
+        ignore_existence=config.recrawl,
+        updated_at_utc=updated_at_utc,
+    )
 
 
 def run_bookmark(args):
