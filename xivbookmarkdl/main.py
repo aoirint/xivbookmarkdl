@@ -328,6 +328,9 @@ def __run_bookmark(config: BookmarkConfig):
         illust_meta_repo=illust_meta_repo,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
+        download_interval=config.download_interval,
+        page_interval=config.page_interval,
+        retry_interval=config.retry_interval,
     )
 
 
@@ -369,6 +372,9 @@ def __run_search_tag(config: SearchTagConfig):
         illust_meta_repo=illust_meta_repo,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
+        download_interval=config.download_interval,
+        page_interval=config.page_interval,
+        retry_interval=config.retry_interval,
     )
 
 
