@@ -27,6 +27,7 @@ class SearchTagConfig(BaseModel):
     refresh_token: str
     keyword: str
     recrawl: bool
+    desc: bool
     download_interval: float
     page_interval: float
     retry_interval: float
@@ -352,11 +353,15 @@ def __run_search_tag(config: SearchTagConfig):
     illust_root_dir = Path(config.root_dir)
     illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
 
-    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', sort='date_asc', req_auth=True)
+    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', sort='date_desc' if config.desc else 'date_asc', req_auth=True)
 
     updated_at_utc = datetime.now(UTC) # utc aware current time
 
-    download_illusts_asc(
+    download_func = download_illusts_asc
+    if config.desc:
+        download_func = download_illusts_desc
+
+    download_func(
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
@@ -374,6 +379,7 @@ def run_search_tag(args):
             refresh_token=args.refresh_token,
             keyword=args.keyword,
             recrawl=args.recrawl,
+            desc=args.desc,
             download_interval=args.download_interval,
             page_interval=args.page_interval,
             retry_interval=args.retry_interval,
@@ -391,9 +397,9 @@ def main():
     subparser_bookmark.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
     subparser_bookmark.add_argument('--user_id', type=int, default=os.environ.get('XIVBKMDL_USER_ID'))
     subparser_bookmark.add_argument('--recrawl', action='store_true')
-    subparser_bookmark.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL'))
-    subparser_bookmark.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL'))
-    subparser_bookmark.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL'))
+    subparser_bookmark.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL', '1.0'))
+    subparser_bookmark.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL', '3.0'))
+    subparser_bookmark.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL', '10.0'))
     subparser_bookmark.set_defaults(handler=run_bookmark)
 
     subparser_search_tag = subparsers.add_parser('search_tag')
@@ -401,9 +407,10 @@ def main():
     subparser_search_tag.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
     subparser_search_tag.add_argument('--keyword', type=str, default=os.environ.get('XIVBKMDL_KEYWORD'))
     subparser_search_tag.add_argument('--recrawl', action='store_true')
-    subparser_search_tag.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL'))
-    subparser_search_tag.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL'))
-    subparser_search_tag.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL'))
+    subparser_search_tag.add_argument('--desc', action='store_true')
+    subparser_search_tag.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL', '1.0'))
+    subparser_search_tag.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL', '3.0'))
+    subparser_search_tag.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL', '10.0'))
     subparser_search_tag.set_defaults(handler=run_search_tag)
 
     args = parser.parse_args()
