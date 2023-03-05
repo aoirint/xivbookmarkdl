@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from pydantic import BaseModel
 
 UTC = timezone.utc
@@ -17,6 +17,14 @@ class BookmarkConfig(BaseModel):
   refresh_token: str
   user_id: int
   recrawl: bool
+
+
+class SearchTagConfig(BaseModel):
+  root_dir: Path
+  refresh_token: str
+  keyword: str
+  recrawl: bool
+
 
 @dataclass
 class IllustMeta:
@@ -89,6 +97,7 @@ def download_illusts(
     api: AppPixivAPI,
     output_dir: Path,
     first_result: Any,
+    next_func: Callable,
     illust_meta_repo: IllustMetaRepo,
     ignore_existence: bool,
     updated_at_utc: datetime,
@@ -149,7 +158,7 @@ def download_illusts(
             break
 
         time.sleep(1)
-        result = api.user_bookmarks_illust(**next_qs)
+        result = next_func(**next_qs)
 
     print(f'New Illusts: {len(new_illusts_desc)}')
 
@@ -200,6 +209,7 @@ def __run_bookmark(config: BookmarkConfig):
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
+        next_func=api.user_bookmarks_illust,
         illust_meta_repo=illust_meta_repo,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
@@ -217,6 +227,40 @@ def run_bookmark(args):
     )
 
 
+def __run_search_tag(config: SearchTagConfig):
+    api = AppPixivAPI()
+
+    api.auth(refresh_token=config.refresh_token)
+
+    illust_root_dir = Path(config.root_dir)
+    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
+
+    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', req_auth=True)
+
+    updated_at_utc = datetime.now(UTC) # utc aware current time
+
+    download_illusts(
+        api=api,
+        output_dir=illust_root_dir,
+        first_result=result,
+        next_func=api.search_illust,
+        illust_meta_repo=illust_meta_repo,
+        ignore_existence=config.recrawl,
+        updated_at_utc=updated_at_utc,
+    )
+
+
+def run_search_tag(args):
+    __run_search_tag(
+        config=SearchTagConfig(
+            root_dir=args.root_dir,
+            refresh_token=args.refresh_token,
+            keyword=args.keyword,
+            recrawl=args.recrawl,
+        )
+    )
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
@@ -228,6 +272,13 @@ def main():
     subparser_bookmark.add_argument('--user_id', type=int, default=os.environ.get('XIVBKMDL_USER_ID'))
     subparser_bookmark.add_argument('--recrawl', action='store_true')
     subparser_bookmark.set_defaults(handler=run_bookmark)
+
+    subparser_search_tag = subparsers.add_parser('search_tag')
+    subparser_search_tag.add_argument('--root_dir', type=Path, default=os.environ.get('XIVBKMDL_ROOT_DIR'))
+    subparser_search_tag.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
+    subparser_search_tag.add_argument('--keyword', type=str, default=os.environ.get('XIVBKMDL_KEYWORD'))
+    subparser_search_tag.add_argument('--recrawl', action='store_true')
+    subparser_search_tag.set_defaults(handler=run_search_tag)
 
     args = parser.parse_args()
 
