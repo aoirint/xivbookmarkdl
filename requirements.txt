@@ -18,7 +18,7 @@ pydantic==1.10.7
     # via -r requirements.in
 pyparsing==3.0.9
     # via cloudscraper
-requests==2.28.2
+requests==2.31.0
     # via
     #   cloudscraper
     #   pixivpy
