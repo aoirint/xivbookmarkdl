@@ -4,9 +4,11 @@
 #
 #    pip-compile
 #
+annotated-types==0.6.0
+    # via pydantic
 certifi==2023.7.22
     # via requests
-charset-normalizer==3.1.0
+charset-normalizer==3.3.0
     # via requests
 cloudscraper==1.2.48
     # via pixivpy
@@ -14,20 +16,24 @@ idna==3.4
     # via requests
 pixivpy==3.7.0
     # via -r requirements.in
-pydantic==1.10.7
+pydantic==2.4.2
     # via -r requirements.in
-pyparsing==3.0.9
+pydantic-core==2.10.1
+    # via pydantic
+pyparsing==3.1.1
     # via cloudscraper
 requests==2.31.0
     # via
     #   cloudscraper
     #   pixivpy
     #   requests-toolbelt
-requests-toolbelt==0.10.1
+requests-toolbelt==1.0.0
     # via
     #   cloudscraper
     #   pixivpy
-typing-extensions==4.5.0
-    # via pydantic
-urllib3==1.26.17
+typing-extensions==4.8.0
+    # via
+    #   pydantic
+    #   pydantic-core
+urllib3==2.0.6
     # via requests
