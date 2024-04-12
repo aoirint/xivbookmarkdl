@@ -12,7 +12,7 @@ charset-normalizer==3.3.1
     # via requests
 cloudscraper==1.2.48
     # via pixivpy
-idna==3.4
+idna==3.7
     # via requests
 pixivpy==3.7.0
     # via -r requirements.in
