@@ -22,7 +22,6 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "~3.11"
-pixivpy = "^3.7.0"
 pydantic = "^2.7.1"
 
 
