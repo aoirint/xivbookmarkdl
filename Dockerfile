@@ -16,10 +16,13 @@ RUN <<EOF
     rm -rf /var/lib/apt/lists/*
 EOF
 
+ARG CONTAINER_UID=1000
+ARG CONTAINER_GID=1000
 RUN <<EOF
     set -eu
 
-    useradd -o -u 1000 -U -m user
+    groupadd --non-unique --gid "${CONTAINER_GID}" user
+    useradd --non-unique --uid "${CONTAINER_UID}" --gid "${CONTAINER_GID}" --create-home user
 EOF
 
 ADD ./requirements.txt /tmp/requirements.txt
