@@ -4,16 +4,28 @@ FROM python:3.11
 ARG DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && \
-    apt-get install -y \
-        gosu && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN <<EOF
+    set -eu
 
-RUN useradd -o -u 1000 -U -m user
+    apt-get update
+
+    apt-get install -y \
+        gosu
+
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+EOF
+
+RUN <<EOF
+    useradd -o -u 1000 -U -m user
+EOF
 
 ADD ./requirements.txt /tmp/requirements.txt
-RUN gosu user pip3 install --no-cache-dir -r /tmp/requirements.txt
+RUN <<EOF
+    set -eu
+
+    gosu user pip3 install --no-cache-dir -r /tmp/requirements.txt
+EOF
 
 ADD ./xivbookmarkdl /opt/xivbookmarkdl
 
