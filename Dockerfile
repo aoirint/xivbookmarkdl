@@ -66,5 +66,4 @@ RUN --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/hom
     gosu user poetry install --only main
 EOF
 
-WORKDIR /code/xivbookmarkdl
 ENTRYPOINT [ "gosu", "user", "poetry", "run", "python", "-m", "xivbookmarkdl" ]
