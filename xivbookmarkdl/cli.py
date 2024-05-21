@@ -3,7 +3,7 @@ import os
 import time
 import traceback
 from abc import ABC, abstractmethod
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,9 +46,10 @@ class IllustMeta:
 
 class IllustMetaRepo(ABC):
     @abstractmethod
-    def get_illust_meta(self) -> Optional[IllustMeta]: ...
+    def get_illust_meta(self, illust_id: int, user_id: int) -> Optional[IllustMeta]: ...
+
     @abstractmethod
-    def update_illust_meta(illust_meta: IllustMeta): ...
+    def update_illust_meta(self, illust_meta: IllustMeta) -> None: ...
 
 
 class FileIllustMetaRepo(IllustMetaRepo):
@@ -76,7 +77,7 @@ class FileIllustMetaRepo(IllustMetaRepo):
             fetched_at=illust_meta_dict["found_at"],
         )
 
-    def update_illust_meta(self, illust_meta: IllustMeta):
+    def update_illust_meta(self, illust_meta: IllustMeta) -> None:
         illust_dir = Path(
             self.root_dir_path, str(illust_meta.user_id), str(illust_meta.illust_id)
         )
@@ -122,7 +123,7 @@ def download_illusts_desc(
     download_interval: float = 1.0,
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
-):
+) -> None:
     IMAGE_EXTS = [
         ".jpg",
         ".jpeg",
@@ -134,8 +135,8 @@ def download_illusts_desc(
     ]
 
     # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
-    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])
-    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
+    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
+    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])  # noqa: B950
 
     result = first_result
 
@@ -248,7 +249,7 @@ def download_illusts_asc(
     download_interval: float = 1.0,
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
-):
+) -> None:
     IMAGE_EXTS = [
         ".jpg",
         ".jpeg",
@@ -260,8 +261,8 @@ def download_illusts_asc(
     ]
 
     # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
-    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])
-    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])
+    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
+    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])  # noqa: B950
 
     result = first_result
 
@@ -349,7 +350,7 @@ def download_illusts_asc(
         page_index += 1
 
 
-def __run_bookmark(config: BookmarkConfig):
+def __run_bookmark(config: BookmarkConfig) -> None:
     api = AppPixivAPI()
 
     api.auth(refresh_token=config.refresh_token)
@@ -375,7 +376,7 @@ def __run_bookmark(config: BookmarkConfig):
     )
 
 
-def run_bookmark(args):
+def run_bookmark(args: Namespace) -> None:
     __run_bookmark(
         config=BookmarkConfig(
             root_dir=args.root_dir,
@@ -389,7 +390,7 @@ def run_bookmark(args):
     )
 
 
-def __run_search_tag(config: SearchTagConfig):
+def __run_search_tag(config: SearchTagConfig) -> None:
     api = AppPixivAPI()
 
     api.auth(refresh_token=config.refresh_token)
@@ -424,7 +425,7 @@ def __run_search_tag(config: SearchTagConfig):
     )
 
 
-def run_search_tag(args):
+def run_search_tag(args: Namespace) -> None:
     __run_search_tag(
         config=SearchTagConfig(
             root_dir=args.root_dir,
@@ -439,7 +440,7 @@ def run_search_tag(args):
     )
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser()
 
     subparsers = parser.add_subparsers()
