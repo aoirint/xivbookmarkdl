@@ -17,6 +17,8 @@ RUN <<EOF
 EOF
 
 RUN <<EOF
+    set -eu
+
     useradd -o -u 1000 -U -m user
 EOF
 
