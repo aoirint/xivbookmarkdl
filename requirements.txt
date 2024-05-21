@@ -22,7 +22,7 @@ pydantic-core==2.10.1
     # via pydantic
 pyparsing==3.1.1
     # via cloudscraper
-requests==2.31.0
+requests==2.32.0
     # via
     #   cloudscraper
     #   pixivpy
