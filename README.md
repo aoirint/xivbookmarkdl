@@ -45,9 +45,14 @@ docker run --rm --env-file ./.env -v "./data:/data" aoirint/xivbookmarkdl
 ```
 
 
-## Update requirements
+## Development
+
+### Dependency management
+
+We use [Poetry](https://python-poetry.org/docs/#installation) as Python dependency manager.
 
 ```shell
-pip3 install pip-tools
-pip-compile requirements.in
+poetry install
+
+poetry update
 ```
