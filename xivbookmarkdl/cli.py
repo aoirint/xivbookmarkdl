@@ -1,16 +1,19 @@
-import os
-from pathlib import Path
-from pixivpy3 import *
-import time
 import json
-from datetime import datetime, timezone
+import os
+import time
 import traceback
 from abc import ABC, abstractmethod
+from argparse import ArgumentParser
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional
+
+from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
 
 UTC = timezone.utc
+
 
 class BookmarkConfig(BaseModel):
     root_dir: Path
@@ -40,13 +43,13 @@ class IllustMeta:
     meta_dict: Dict[str, Any]
     fetched_at: datetime
 
+
 class IllustMetaRepo(ABC):
     @abstractmethod
-    def get_illust_meta(self) -> Optional[IllustMeta]:
-        ...
+    def get_illust_meta(self) -> Optional[IllustMeta]: ...
     @abstractmethod
-    def update_illust_meta(illust_meta: IllustMeta):
-        ...
+    def update_illust_meta(illust_meta: IllustMeta): ...
+
 
 class FileIllustMetaRepo(IllustMetaRepo):
     def __init__(self, root_dir_path: Path):
@@ -55,49 +58,57 @@ class FileIllustMetaRepo(IllustMetaRepo):
     def get_illust_meta(self, illust_id: int, user_id: int) -> Optional[IllustMeta]:
         illust_dir = Path(self.root_dir_path, str(user_id), str(illust_id))
 
-        meta_path = illust_dir / 'illust.json'
+        meta_path = illust_dir / "illust.json"
         if not meta_path.exists():
             return None
 
-        with open(meta_path, 'r', encoding='utf-8') as fp:
+        with open(meta_path, "r", encoding="utf-8") as fp:
             try:
                 illust_meta_dict = json.load(fp)
-            except ValueError: # json.decoder.JSONDecodeError
+            except ValueError:  # json.decoder.JSONDecodeError
                 traceback.print_exc()
                 return None
 
         return IllustMeta(
             illust_id=illust_id,
             user_id=user_id,
-            meta_dict=illust_meta_dict['illust'],
-            fetched_at=illust_meta_dict['found_at'],
+            meta_dict=illust_meta_dict["illust"],
+            fetched_at=illust_meta_dict["found_at"],
         )
 
     def update_illust_meta(self, illust_meta: IllustMeta):
-        illust_dir = Path(self.root_dir_path, str(illust_meta.user_id), str(illust_meta.illust_id))
+        illust_dir = Path(
+            self.root_dir_path, str(illust_meta.user_id), str(illust_meta.illust_id)
+        )
         illust_dir.mkdir(exist_ok=True, parents=True)
 
-        meta_path = illust_dir / 'illust.json'
+        meta_path = illust_dir / "illust.json"
 
         found_at_utc = illust_meta.fetched_at.astimezone(UTC)
         if meta_path.exists():
-            with open(meta_path, 'r', encoding='utf-8') as fp:
+            with open(meta_path, "r", encoding="utf-8") as fp:
                 old_meta = {}
 
                 try:
                     old_meta = json.load(fp)
-                except ValueError: # json.decoder.JSONDecodeError
+                except ValueError:  # json.decoder.JSONDecodeError
                     traceback.print_exc()
 
-                if 'found_at' in old_meta:
-                    found_at_utc = datetime.fromisoformat(old_meta['found_at']).astimezone(UTC)
+                if "found_at" in old_meta:
+                    found_at_utc = datetime.fromisoformat(
+                        old_meta["found_at"]
+                    ).astimezone(UTC)
 
-        with open(meta_path, 'w', encoding='utf-8') as fp:
-            json.dump({
-                'illust': illust_meta.meta_dict,
-                'found_at': found_at_utc.isoformat(),
-                'updated_at': illust_meta.fetched_at.astimezone(UTC).isoformat(),
-            }, fp, ensure_ascii=False)
+        with open(meta_path, "w", encoding="utf-8") as fp:
+            json.dump(
+                {
+                    "illust": illust_meta.meta_dict,
+                    "found_at": found_at_utc.isoformat(),
+                    "updated_at": illust_meta.fetched_at.astimezone(UTC).isoformat(),
+                },
+                fp,
+                ensure_ascii=False,
+            )
 
 
 def download_illusts_desc(
@@ -113,13 +124,13 @@ def download_illusts_desc(
     retry_interval: float = 10.0,
 ):
     IMAGE_EXTS = [
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.webp',
-        '.mp4',
-        '.webm',
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".mp4",
+        ".webm",
     ]
 
     # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
@@ -137,7 +148,9 @@ def download_illusts_desc(
         for illust in illusts:
             user = illust.user
 
-            old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
+            old_meta = illust_meta_repo.get_illust_meta(
+                illust_id=int(illust.id), user_id=int(user.id)
+            )
             if old_meta is not None:
                 illust_dir = Path(output_dir, str(user.id), str(illust.id))
                 if illust_dir.exists() and not ignore_existence:
@@ -145,10 +158,17 @@ def download_illusts_desc(
                     files_in_illust_dir = list(illust_dir.iterdir())
 
                     # remove program meta file, os meta file entries
-                    images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
+                    images_in_illust_dir = list(
+                        filter(
+                            lambda path: path.suffix.lower() in IMAGE_EXTS,
+                            files_in_illust_dir,
+                        )
+                    )
 
                     num_local_pages = len(images_in_illust_dir)
-                    num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
+                    num_remote_pages = (
+                        1 if illust.meta_single_page else len(illust.meta_pages)
+                    )
 
                     if num_local_pages == num_remote_pages:
                         continue
@@ -157,11 +177,11 @@ def download_illusts_desc(
 
         # if no new illust in the current page, stop paging (desc search, asc download)
         if len(page_new_illusts_desc) == 0:
-            print('No new illust found in page')
+            print("No new illust found in page")
             break
 
         new_illusts_desc.extend(page_new_illusts_desc)
-        print(f'Paging (found: {len(new_illusts_desc)})')
+        print(f"Paging (found: {len(new_illusts_desc)})")
 
         next_qs = api.parse_qs(result.next_url)
         if not next_qs:
@@ -178,7 +198,7 @@ def download_illusts_desc(
 
         result = next_result
 
-    print(f'New Illusts: {len(new_illusts_desc)}')
+    print(f"New Illusts: {len(new_illusts_desc)}")
 
     # download new illust in asc order
     new_illusts_asc = list(reversed(new_illusts_desc))
@@ -188,14 +208,20 @@ def download_illusts_desc(
         illust_dir = Path(output_dir, str(user.id), str(illust.id))
         illust_dir.mkdir(exist_ok=True, parents=True)
 
-        print(f'{illust_index}/{len(new_illusts_asc)}', user.id, user.name, illust.id, illust.title)
+        print(
+            f"{illust_index}/{len(new_illusts_asc)}",
+            user.id,
+            user.name,
+            illust.id,
+            illust.title,
+        )
         if illust.meta_single_page:
             image_url = illust.meta_single_page.original_image_url
             print(image_url)
             if api.download(image_url, path=illust_dir):
                 time.sleep(download_interval)
         else:
-            pages = illust.meta_pages 
+            pages = illust.meta_pages
             for page in pages:
                 image_url = page.image_urls.original
                 print(image_url)
@@ -211,7 +237,6 @@ def download_illusts_desc(
         illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
 
 
-
 def download_illusts_asc(
     api: AppPixivAPI,
     output_dir: Path,
@@ -225,13 +250,13 @@ def download_illusts_asc(
     retry_interval: float = 10.0,
 ):
     IMAGE_EXTS = [
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.webp',
-        '.mp4',
-        '.webm',
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".mp4",
+        ".webm",
     ]
 
     # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
@@ -245,12 +270,14 @@ def download_illusts_asc(
     while True:
         illusts = result.illusts
 
-        print(f'Page {page_index+1} (found: {len(illusts)})')
+        print(f"Page {page_index+1} (found: {len(illusts)})")
 
         for illust_index, illust in enumerate(illusts):
             user = illust.user
 
-            old_meta = illust_meta_repo.get_illust_meta(illust_id=int(illust.id), user_id=int(user.id))
+            old_meta = illust_meta_repo.get_illust_meta(
+                illust_id=int(illust.id), user_id=int(user.id)
+            )
             if old_meta is not None:
                 illust_dir = Path(output_dir, str(user.id), str(illust.id))
                 if illust_dir.exists() and not ignore_existence:
@@ -258,10 +285,17 @@ def download_illusts_asc(
                     files_in_illust_dir = list(illust_dir.iterdir())
 
                     # remove program meta file, os meta file entries
-                    images_in_illust_dir = list(filter(lambda path: path.suffix.lower() in IMAGE_EXTS, files_in_illust_dir))
+                    images_in_illust_dir = list(
+                        filter(
+                            lambda path: path.suffix.lower() in IMAGE_EXTS,
+                            files_in_illust_dir,
+                        )
+                    )
 
                     num_local_pages = len(images_in_illust_dir)
-                    num_remote_pages = 1 if illust.meta_single_page else len(illust.meta_pages)
+                    num_remote_pages = (
+                        1 if illust.meta_single_page else len(illust.meta_pages)
+                    )
 
                     if num_local_pages == num_remote_pages:
                         continue
@@ -269,14 +303,21 @@ def download_illusts_asc(
             illust_dir = Path(output_dir, str(user.id), str(illust.id))
             illust_dir.mkdir(exist_ok=True, parents=True)
 
-            print(f'Page {page_index+1}', f'Index {illust_index+1}/{len(illusts)}', user.id, user.name, illust.id, illust.title)
+            print(
+                f"Page {page_index+1}",
+                f"Index {illust_index+1}/{len(illusts)}",
+                user.id,
+                user.name,
+                illust.id,
+                illust.title,
+            )
             if illust.meta_single_page:
                 image_url = illust.meta_single_page.original_image_url
                 print(image_url)
                 if api.download(image_url, path=illust_dir):
                     time.sleep(download_interval)
             else:
-                pages = illust.meta_pages 
+                pages = illust.meta_pages
                 for page in pages:
                     image_url = page.image_urls.original
                     print(image_url)
@@ -318,7 +359,7 @@ def __run_bookmark(config: BookmarkConfig):
 
     result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
 
-    updated_at_utc = datetime.now(UTC) # utc aware current time
+    updated_at_utc = datetime.now(UTC)  # utc aware current time
 
     download_illusts_desc(
         api=api,
@@ -356,9 +397,14 @@ def __run_search_tag(config: SearchTagConfig):
     illust_root_dir = Path(config.root_dir)
     illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
 
-    result = api.search_illust(word=config.keyword, search_target='exact_match_for_tags', sort='date_desc' if config.desc else 'date_asc', req_auth=True)
+    result = api.search_illust(
+        word=config.keyword,
+        search_target="exact_match_for_tags",
+        sort="date_desc" if config.desc else "date_asc",
+        req_auth=True,
+    )
 
-    updated_at_utc = datetime.now(UTC) # utc aware current time
+    updated_at_utc = datetime.now(UTC)  # utc aware current time
 
     download_func = download_illusts_asc
     if config.desc:
@@ -394,34 +440,69 @@ def run_search_tag(args):
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
 
     subparsers = parser.add_subparsers()
-    subparser_bookmark = subparsers.add_parser('bookmark')
-    subparser_bookmark.add_argument('--root_dir', type=Path, default=os.environ.get('XIVBKMDL_ROOT_DIR'))
-    subparser_bookmark.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
-    subparser_bookmark.add_argument('--user_id', type=int, default=os.environ.get('XIVBKMDL_USER_ID'))
-    subparser_bookmark.add_argument('--recrawl', action='store_true')
-    subparser_bookmark.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL', '1.0'))
-    subparser_bookmark.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL', '3.0'))
-    subparser_bookmark.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL', '10.0'))
+    subparser_bookmark = subparsers.add_parser("bookmark")
+    subparser_bookmark.add_argument(
+        "--root_dir", type=Path, default=os.environ.get("XIVBKMDL_ROOT_DIR")
+    )
+    subparser_bookmark.add_argument(
+        "--refresh_token", type=str, default=os.environ.get("XIVBKMDL_REFRESH_TOKEN")
+    )
+    subparser_bookmark.add_argument(
+        "--user_id", type=int, default=os.environ.get("XIVBKMDL_USER_ID")
+    )
+    subparser_bookmark.add_argument("--recrawl", action="store_true")
+    subparser_bookmark.add_argument(
+        "--download_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_DOWNLOAD_INTERVAL", "1.0"),
+    )
+    subparser_bookmark.add_argument(
+        "--page_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_PAGE_INTERVAL", "3.0"),
+    )
+    subparser_bookmark.add_argument(
+        "--retry_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_RETRY_INTERVAL", "10.0"),
+    )
     subparser_bookmark.set_defaults(handler=run_bookmark)
 
-    subparser_search_tag = subparsers.add_parser('search_tag')
-    subparser_search_tag.add_argument('--root_dir', type=Path, default=os.environ.get('XIVBKMDL_ROOT_DIR'))
-    subparser_search_tag.add_argument('--refresh_token', type=str, default=os.environ.get('XIVBKMDL_REFRESH_TOKEN'))
-    subparser_search_tag.add_argument('--keyword', type=str, default=os.environ.get('XIVBKMDL_KEYWORD'))
-    subparser_search_tag.add_argument('--recrawl', action='store_true')
-    subparser_search_tag.add_argument('--desc', action='store_true')
-    subparser_search_tag.add_argument('--download_interval', type=float, default=os.environ.get('XIVBKMDL_DOWNLOAD_INTERVAL', '1.0'))
-    subparser_search_tag.add_argument('--page_interval', type=float, default=os.environ.get('XIVBKMDL_PAGE_INTERVAL', '3.0'))
-    subparser_search_tag.add_argument('--retry_interval', type=float, default=os.environ.get('XIVBKMDL_RETRY_INTERVAL', '10.0'))
+    subparser_search_tag = subparsers.add_parser("search_tag")
+    subparser_search_tag.add_argument(
+        "--root_dir", type=Path, default=os.environ.get("XIVBKMDL_ROOT_DIR")
+    )
+    subparser_search_tag.add_argument(
+        "--refresh_token", type=str, default=os.environ.get("XIVBKMDL_REFRESH_TOKEN")
+    )
+    subparser_search_tag.add_argument(
+        "--keyword", type=str, default=os.environ.get("XIVBKMDL_KEYWORD")
+    )
+    subparser_search_tag.add_argument("--recrawl", action="store_true")
+    subparser_search_tag.add_argument("--desc", action="store_true")
+    subparser_search_tag.add_argument(
+        "--download_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_DOWNLOAD_INTERVAL", "1.0"),
+    )
+    subparser_search_tag.add_argument(
+        "--page_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_PAGE_INTERVAL", "3.0"),
+    )
+    subparser_search_tag.add_argument(
+        "--retry_interval",
+        type=float,
+        default=os.environ.get("XIVBKMDL_RETRY_INTERVAL", "10.0"),
+    )
     subparser_search_tag.set_defaults(handler=run_search_tag)
 
     args = parser.parse_args()
 
-    if hasattr(args, 'handler'):
+    if hasattr(args, "handler"):
         args.handler(args)
     else:
         parser.print_help()
