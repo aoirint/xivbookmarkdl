@@ -200,13 +200,13 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cloudscraper"
-version = "1.2.48"
+version = "1.2.71"
 description = "A Python module to bypass Cloudflare's anti-bot page."
 optional = false
 python-versions = "*"
 files = [
-    {file = "cloudscraper-1.2.48-py2.py3-none-any.whl", hash = "sha256:c09bd6c283e6b0918cff12ad829857337431c486409abb1916d50abfed6ef118"},
-    {file = "cloudscraper-1.2.48.tar.gz", hash = "sha256:bb6be1c2d12720c9fcde80f1965a2250444821f64a900e5bddf9aef2c1fa5d62"},
+    {file = "cloudscraper-1.2.71-py2.py3-none-any.whl", hash = "sha256:76f50ca529ed2279e220837befdec892626f9511708e200d48d5bb76ded679b0"},
+    {file = "cloudscraper-1.2.71.tar.gz", hash = "sha256:429c6e8aa6916d5bad5c8a5eac50f3ea53c9ac22616f6cb21b18dcc71517d0d3"},
 ]
 
 [package.dependencies]
@@ -445,21 +445,22 @@ files = [
 ]
 
 [[package]]
-name = "pixivpy"
-version = "3.7.0"
+name = "pixivpy3"
+version = "3.7.5"
 description = "Pixiv API for Python (with 6.x AppAPI supported)"
 optional = false
-python-versions = "*"
+python-versions = ">=3.7,<4.0"
 files = [
-    {file = "PixivPy-3.7.0-py2-none-any.whl", hash = "sha256:e3ed57dd1c8faa14201645d516a7b988a033033fc673dce6eca25d048960647d"},
-    {file = "PixivPy-3.7.0-py3-none-any.whl", hash = "sha256:93d5cb51ca8cf769e5155aecdf96df58b5a0f26ca438bbe09478619e73cafb9e"},
-    {file = "PixivPy-3.7.0.tar.gz", hash = "sha256:f31833b3d012473ca18f4aac6ab4b9ed77900cac63be7a908df9b25bd8e795b4"},
+    {file = "pixivpy3-3.7.5-py3-none-any.whl", hash = "sha256:3f9c3c9236d9924de9f80390cc3d1cc78bc494175a94cc9903f7b60308efca72"},
+    {file = "pixivpy3-3.7.5.tar.gz", hash = "sha256:cfb0c444bea994a9b2c1c01e60f2e8ab1afe57b05f2d51545ef64a7df2f220cc"},
 ]
 
 [package.dependencies]
-cloudscraper = ">=1.0,<1.2.50"
-requests = ">=2.0"
-requests-toolbelt = ">=0.9.1"
+cloudscraper = ">=1.2.58,<2.0.0"
+requests = ">=2.31.0,<3.0.0"
+requests-toolbelt = ">=1.0.0,<2.0.0"
+typing-extensions = ">=4.1.1,<5.0.0"
+urllib3 = ">=2.0.7,<3.0.0"
 
 [[package]]
 name = "platformdirs"
@@ -778,4 +779,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "53c5ded9954f6b7106daaf75ca95002d2e07b70071d66e32e0ebfcb97eaec703"
+content-hash = "aca6b7e1179fd39f43e10af3c4f5a9b902fa5b21eb5f696338b87f4fe76c46c3"

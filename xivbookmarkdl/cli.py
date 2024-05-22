@@ -219,14 +219,14 @@ def download_illusts_desc(
         if illust.meta_single_page:
             image_url = illust.meta_single_page.original_image_url
             print(image_url)
-            if api.download(image_url, path=illust_dir):
+            if api.download(image_url, path=str(illust_dir)):
                 time.sleep(download_interval)
         else:
             pages = illust.meta_pages
             for page in pages:
                 image_url = page.image_urls.original
                 print(image_url)
-                if api.download(image_url, path=illust_dir):
+                if api.download(image_url, path=str(illust_dir)):
                     time.sleep(download_interval)
 
         illust_meta = IllustMeta(
@@ -315,14 +315,14 @@ def download_illusts_asc(
             if illust.meta_single_page:
                 image_url = illust.meta_single_page.original_image_url
                 print(image_url)
-                if api.download(image_url, path=illust_dir):
+                if api.download(image_url, path=str(illust_dir)):
                     time.sleep(download_interval)
             else:
                 pages = illust.meta_pages
                 for page in pages:
                     image_url = page.image_urls.original
                     print(image_url)
-                    if api.download(image_url, path=illust_dir):
+                    if api.download(image_url, path=str(illust_dir)):
                         time.sleep(download_interval)
 
             illust_meta = IllustMeta(
