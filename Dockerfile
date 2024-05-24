@@ -47,7 +47,7 @@ RUN <<EOF
 EOF
 
 WORKDIR /code/xivbookmarkdl
-ADD --chown="${CONTAINER_UID}:${CONTAINER_GID}" ./pyproject.toml ./poetry.lock /code/xivbookmarkdl/
+ADD ./pyproject.toml ./poetry.lock /code/xivbookmarkdl/
 
 RUN --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/home/user/.cache/pypoetry/cache \
     --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/home/user/.cache/pypoetry/artifacts <<EOF
@@ -56,8 +56,8 @@ RUN --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/hom
     gosu user poetry install --no-root --only main
 EOF
 
-ADD --chown="${CONTAINER_UID}:${CONTAINER_GID}" ./README.md /code/xivbookmarkdl/
-ADD --chown="${CONTAINER_UID}:${CONTAINER_GID}" ./xivbookmarkdl /code/xivbookmarkdl/xivbookmarkdl
+ADD ./xivbookmarkdl /code/xivbookmarkdl/xivbookmarkdl
+ADD ./README.md /code/xivbookmarkdl/
 
 RUN --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/home/user/.cache/pypoetry/cache \
     --mount=type=cache,uid="${CONTAINER_UID}",gid="${CONTAINER_GID}",target=/home/user/.cache/pypoetry/artifacts <<EOF
