@@ -24,6 +24,7 @@ readme = "README.md"
 python = "~3.11"
 pydantic = "^2.7.1"
 pixivpy3 = "^3.7.5"
+boto3 = "^1.37.13"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -34,6 +35,7 @@ flake8 = "^7.0.0"
 flake8-bugbear = "^24.4.26"
 mypy = "^1.10.0"
 pytest = "^8.2.1"
+boto3-stubs = {extras = ["s3"], version = "^1.37.13"}
 
 [build-system]
 requires = ["poetry-core"]
