@@ -1,10 +1,11 @@
+import asyncio
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import AsyncIterator
 
-from .base import Storage
+from .base import Storage, StorageDownloadNotFoundError
 
 
 class StorageFilesystem(Storage):
@@ -21,7 +22,14 @@ class StorageFilesystem(Storage):
 
             file = tmpdir / "a"
 
-            shutil.copyfile(self.root_dir / key, file)
+            try:
+                await asyncio.to_thread(
+                    shutil.copyfile,
+                    self.root_dir / key,
+                    file,
+                )
+            except FileNotFoundError:
+                raise StorageDownloadNotFoundError
 
             yield file
 
@@ -30,4 +38,8 @@ class StorageFilesystem(Storage):
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
 
-        shutil.copyfile(source_path, dest_path)
+        await asyncio.to_thread(
+            shutil.copyfile,
+            source_path,
+            dest_path,
+        )

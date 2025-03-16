@@ -3,6 +3,10 @@ from contextlib import AbstractAsyncContextManager
 from pathlib import Path
 
 
+class StorageDownloadNotFoundError(Exception):
+    pass
+
+
 class Storage(ABC):
     @abstractmethod
     def download(self, key: str) -> AbstractAsyncContextManager[Path]: ...

@@ -8,7 +8,7 @@ import boto3
 from botocore.client import Config
 from mypy_boto3_s3 import S3Client
 
-from .base import Storage
+from .base import Storage, StorageDownloadNotFoundError
 
 
 class StorageS3(Storage):
@@ -52,12 +52,16 @@ class StorageS3(Storage):
 
             file = tmpdir / "a"
 
-            await asyncio.to_thread(
-                s3_client.download_file,
-                Bucket=self.bucket_name,
-                Key=key,
-                Filename=str(file),
-            )
+            try:
+                await asyncio.to_thread(
+                    s3_client.download_file,
+                    Bucket=self.bucket_name,
+                    Key=key,
+                    Filename=str(file),
+                )
+            except s3_client.exceptions.NoSuchKey:
+                # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
+                raise StorageDownloadNotFoundError
 
             yield file
 
