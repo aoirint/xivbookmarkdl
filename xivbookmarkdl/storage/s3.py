@@ -2,13 +2,15 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, AsyncIterator
 
 import boto3
 from botocore.client import Config
-from mypy_boto3_s3 import S3Client
 
 from .base import Storage, StorageDownloadNotFoundError
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 class StorageS3(Storage):
