@@ -5,10 +5,12 @@ from argparse import ArgumentParser, Namespace
 from asyncio import iscoroutinefunction
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
+from xivbookmarkdl.dao.illust_binary import IllustBinaryDao
 from xivbookmarkdl.storage.filesystem import StorageFilesystem
 
 from .dao.illust_meta import IllustMetaDao
@@ -40,59 +42,40 @@ class SearchTagConfig(BaseModel):
 
 async def download_illusts_desc(
     api: AppPixivAPI,
-    output_dir: Path,
     first_result: Any,
     next_func: Any,
     illust_meta_dao: IllustMetaDao,
+    illust_binary_dao: IllustBinaryDao,
     ignore_existence: bool,
     updated_at_utc: datetime,
     download_interval: float = 1.0,
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
 ) -> None:
-    IMAGE_EXTS = [
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".mp4",
-        ".webm",
-    ]
-
-    # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
-    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
-    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])  # noqa: B950
-
     result = first_result
 
     # search illusts in desc order
-    new_illusts_desc = []
+    new_illusts_desc: list[Any] = []
     while True:
         illusts = result.illusts
-        page_new_illusts_desc = []
+        page_new_illusts_desc: list[Any] = []
 
         for illust in illusts:
             user = illust.user
 
-            old_meta = await illust_meta_dao.get_illust_meta(
-                illust_id=int(illust.id), user_id=int(user.id)
-            )
-            if old_meta is not None:
-                illust_dir = Path(output_dir, str(user.id), str(illust.id))
-                if illust_dir.exists() and not ignore_existence:
-                    # Detect difference addition & download continuously
-                    files_in_illust_dir = list(illust_dir.iterdir())
-
-                    # remove program meta file, os meta file entries
-                    images_in_illust_dir = list(
-                        filter(
-                            lambda path: path.suffix.lower() in IMAGE_EXTS,
-                            files_in_illust_dir,
+            if not ignore_existence:
+                old_meta = await illust_meta_dao.get_illust_meta(
+                    illust_id=int(illust.id), user_id=int(user.id)
+                )
+                if old_meta is not None:
+                    downloaded_illust_keys = (
+                        await illust_binary_dao.get_downloaded_illust_keys(
+                            illust_id=int(illust.id),
+                            user_id=int(user.id),
                         )
                     )
 
-                    num_local_pages = len(images_in_illust_dir)
+                    num_local_pages = len(downloaded_illust_keys)
                     num_remote_pages = (
                         1 if illust.meta_single_page else len(illust.meta_pages)
                     )
@@ -132,9 +115,6 @@ async def download_illusts_desc(
     for illust_index, illust in enumerate(new_illusts_asc):
         user = illust.user
 
-        illust_dir = Path(output_dir, str(user.id), str(illust.id))
-        illust_dir.mkdir(exist_ok=True, parents=True)
-
         print(
             f"{illust_index}/{len(new_illusts_asc)}",
             user.id,
@@ -145,15 +125,37 @@ async def download_illusts_desc(
         if illust.meta_single_page:
             image_url = illust.meta_single_page.original_image_url
             print(image_url)
-            if api.download(image_url, path=str(illust_dir)):
-                time.sleep(download_interval)
+
+            with TemporaryDirectory() as _tmpdir:
+                tmpdir = Path(_tmpdir)
+
+                if api.download(image_url, path=str(tmpdir)):
+                    for file in tmpdir.iterdir():
+                        await illust_binary_dao.store_illust_binary(
+                            illust_id=int(illust.id),
+                            user_id=int(user.id),
+                            file=file,
+                        )
+
+                    time.sleep(download_interval)
         else:
             pages = illust.meta_pages
             for page in pages:
                 image_url = page.image_urls.original
                 print(image_url)
-                if api.download(image_url, path=str(illust_dir)):
-                    time.sleep(download_interval)
+
+                with TemporaryDirectory() as _tmpdir:
+                    tmpdir = Path(_tmpdir)
+
+                    if api.download(image_url, path=str(tmpdir)):
+                        for file in tmpdir.iterdir():
+                            await illust_binary_dao.store_illust_binary(
+                                illust_id=int(illust.id),
+                                user_id=int(user.id),
+                                file=file,
+                            )
+
+                        time.sleep(download_interval)
 
         await illust_meta_dao.upsert_illust_meta(
             illust_id=int(illust.id),
@@ -165,25 +167,16 @@ async def download_illusts_desc(
 
 async def download_illusts_asc(
     api: AppPixivAPI,
-    output_dir: Path,
     first_result: Any,
     next_func: Any,
     illust_meta_dao: IllustMetaDao,
+    illust_binary_dao: IllustBinaryDao,
     ignore_existence: bool,
     updated_at_utc: datetime,
     download_interval: float = 1.0,
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
 ) -> None:
-    IMAGE_EXTS = [
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".gif",
-        ".webp",
-        ".mp4",
-        ".webm",
-    ]
 
     # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
     # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
@@ -201,33 +194,25 @@ async def download_illusts_asc(
         for illust_index, illust in enumerate(illusts):
             user = illust.user
 
-            old_meta = await illust_meta_dao.get_illust_meta(
-                illust_id=int(illust.id), user_id=int(user.id)
-            )
-            if old_meta is not None:
-                illust_dir = Path(output_dir, str(user.id), str(illust.id))
-                if illust_dir.exists() and not ignore_existence:
-                    # Detect difference addition & download continuously
-                    files_in_illust_dir = list(illust_dir.iterdir())
-
-                    # remove program meta file, os meta file entries
-                    images_in_illust_dir = list(
-                        filter(
-                            lambda path: path.suffix.lower() in IMAGE_EXTS,
-                            files_in_illust_dir,
+            if not ignore_existence:
+                old_meta = await illust_meta_dao.get_illust_meta(
+                    illust_id=int(illust.id), user_id=int(user.id)
+                )
+                if old_meta is not None:
+                    downloaded_illust_keys = (
+                        await illust_binary_dao.get_downloaded_illust_keys(
+                            illust_id=int(illust.id),
+                            user_id=int(user.id),
                         )
                     )
 
-                    num_local_pages = len(images_in_illust_dir)
+                    num_local_pages = len(downloaded_illust_keys)
                     num_remote_pages = (
                         1 if illust.meta_single_page else len(illust.meta_pages)
                     )
 
                     if num_local_pages == num_remote_pages:
                         continue
-
-            illust_dir = Path(output_dir, str(user.id), str(illust.id))
-            illust_dir.mkdir(exist_ok=True, parents=True)
 
             print(
                 f"Page {page_index+1}",
@@ -240,15 +225,37 @@ async def download_illusts_asc(
             if illust.meta_single_page:
                 image_url = illust.meta_single_page.original_image_url
                 print(image_url)
-                if api.download(image_url, path=str(illust_dir)):
-                    time.sleep(download_interval)
+
+                with TemporaryDirectory() as _tmpdir:
+                    tmpdir = Path(_tmpdir)
+
+                    if api.download(image_url, path=str(tmpdir)):
+                        for file in tmpdir.iterdir():
+                            await illust_binary_dao.store_illust_binary(
+                                illust_id=int(illust.id),
+                                user_id=int(user.id),
+                                file=file,
+                            )
+
+                        time.sleep(download_interval)
             else:
                 pages = illust.meta_pages
                 for page in pages:
                     image_url = page.image_urls.original
                     print(image_url)
-                    if api.download(image_url, path=str(illust_dir)):
-                        time.sleep(download_interval)
+
+                    with TemporaryDirectory() as _tmpdir:
+                        tmpdir = Path(_tmpdir)
+
+                        if api.download(image_url, path=str(tmpdir)):
+                            for file in tmpdir.iterdir():
+                                await illust_binary_dao.store_illust_binary(
+                                    illust_id=int(illust.id),
+                                    user_id=int(user.id),
+                                    file=file,
+                                )
+
+                            time.sleep(download_interval)
 
             await illust_meta_dao.upsert_illust_meta(
                 illust_id=int(illust.id),
@@ -285,16 +292,20 @@ async def __run_bookmark(config: BookmarkConfig) -> None:
         storage=StorageFilesystem(root_dir=illust_root_dir),
     )
 
+    illust_binary_dao = IllustBinaryDao(
+        storage=StorageFilesystem(root_dir=illust_root_dir),
+    )
+
     result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
 
     updated_at_utc = datetime.now(UTC)  # utc aware current time
 
     await download_illusts_desc(
         api=api,
-        output_dir=illust_root_dir,
         first_result=result,
         next_func=api.user_bookmarks_illust,
         illust_meta_dao=illust_meta_dao,
+        illust_binary_dao=illust_binary_dao,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
         download_interval=config.download_interval,
@@ -328,6 +339,10 @@ async def __run_search_tag(config: SearchTagConfig) -> None:
         storage=StorageFilesystem(root_dir=illust_root_dir),
     )
 
+    illust_binary_dao = IllustBinaryDao(
+        storage=StorageFilesystem(root_dir=illust_root_dir),
+    )
+
     result = api.search_illust(
         word=config.keyword,
         search_target="exact_match_for_tags",
@@ -343,10 +358,10 @@ async def __run_search_tag(config: SearchTagConfig) -> None:
 
     await download_func(
         api=api,
-        output_dir=illust_root_dir,
         first_result=result,
         next_func=api.search_illust,
         illust_meta_dao=illust_meta_dao,
+        illust_binary_dao=illust_binary_dao,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
         download_interval=config.download_interval,
