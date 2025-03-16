@@ -48,7 +48,7 @@ class IllustMetaDao:
                     logger.exception(inner_error)
 
                     return None
-        except StorageDownloadNotFoundError as outer_error:
+        except StorageDownloadNotFoundError:
             return None
 
         return IllustMetaWithId(
