@@ -6,21 +6,31 @@ from asyncio import iscoroutinefunction
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal
 
 from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
 
 from .dao.illust_binary import IllustBinaryDao
 from .dao.illust_meta import IllustMetaDao
+from .storage.base import Storage
 from .storage.filesystem import StorageFilesystem
+from .storage.s3 import StorageS3
 
 UTC = timezone.utc
 logger = logging.getLogger("xivbookmarkdl")
 
 
 class BookmarkConfig(BaseModel):
-    root_dir: Path
+    storage_type: Literal["filesystem", "s3"]
+    root_dir: str | None
+    storage_s3_bucket: str | None
+    storage_s3_region: str | None
+    storage_s3_endpoint_url: str | None
+    storage_s3_force_path_style: bool
+    storage_s3_access_key_id: str | None
+    storage_s3_secret_access_key: str | None
+    storage_s3_session_token: str | None
     refresh_token: str
     user_id: int
     recrawl: bool
@@ -30,7 +40,15 @@ class BookmarkConfig(BaseModel):
 
 
 class SearchTagConfig(BaseModel):
-    root_dir: Path
+    storage_type: Literal["filesystem", "s3"]
+    root_dir: str | None
+    storage_s3_bucket: str | None
+    storage_s3_region: str | None
+    storage_s3_endpoint_url: str | None
+    storage_s3_force_path_style: bool
+    storage_s3_access_key_id: str | None
+    storage_s3_secret_access_key: str | None
+    storage_s3_session_token: str | None
     refresh_token: str
     keyword: str
     recrawl: bool
@@ -282,19 +300,52 @@ async def download_illusts_asc(
 
 
 async def __run_bookmark(config: BookmarkConfig) -> None:
-    api = AppPixivAPI()
+    storage: Storage
+    if config.storage_type == "filesystem":
+        if not config.root_dir:
+            raise ValueError("root_dir is required for filesystem")
 
-    api.auth(refresh_token=config.refresh_token)
+        root_dir = Path(config.root_dir)
 
-    illust_root_dir = Path(config.root_dir)
+        storage = StorageFilesystem(root_dir=root_dir)
+    elif config.storage_type == "s3":
+        prefix = None
+
+        root_dir_string = config.root_dir
+        if root_dir_string:
+            # 末尾にスラッシュを追加
+            if not root_dir_string.endswith("/"):
+                root_dir_string += "/"
+
+            prefix = root_dir_string
+
+        if not config.storage_s3_bucket:
+            raise ValueError("storage_s3_bucket is required for s3")
+
+        storage = StorageS3(
+            bucket_name=config.storage_s3_bucket,
+            prefix=prefix,
+            aws_region=config.storage_s3_region,
+            aws_endpoint_url=config.storage_s3_endpoint_url,
+            force_path_style=config.storage_s3_force_path_style,
+            aws_access_key_id=config.storage_s3_access_key_id,
+            aws_secret_access_key=config.storage_s3_secret_access_key,
+            aws_session_token=config.storage_s3_session_token,
+        )
+    else:
+        raise ValueError(f"Unknown storage_type: {config.storage_type}")
 
     illust_meta_dao = IllustMetaDao(
-        storage=StorageFilesystem(root_dir=illust_root_dir),
+        storage=storage,
     )
 
     illust_binary_dao = IllustBinaryDao(
-        storage=StorageFilesystem(root_dir=illust_root_dir),
+        storage=storage,
     )
+
+    api = AppPixivAPI()
+
+    api.auth(refresh_token=config.refresh_token)
 
     result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
 
@@ -317,7 +368,15 @@ async def __run_bookmark(config: BookmarkConfig) -> None:
 async def run_bookmark(args: Namespace) -> None:
     await __run_bookmark(
         config=BookmarkConfig(
+            storage_type=args.storage_type,
             root_dir=args.root_dir,
+            storage_s3_bucket=args.storage_s3_bucket,
+            storage_s3_region=args.storage_s3_region,
+            storage_s3_endpoint_url=args.storage_s3_endpoint_url,
+            storage_s3_force_path_style=args.storage_s3_force_path_style,
+            storage_s3_access_key_id=args.storage_s3_access_key_id,
+            storage_s3_secret_access_key=args.storage_s3_secret_access_key,
+            storage_s3_session_token=args.storage_s3_session_token,
             refresh_token=args.refresh_token,
             user_id=args.user_id,
             recrawl=args.recrawl,
@@ -329,19 +388,52 @@ async def run_bookmark(args: Namespace) -> None:
 
 
 async def __run_search_tag(config: SearchTagConfig) -> None:
-    api = AppPixivAPI()
+    storage: Storage
+    if config.storage_type == "filesystem":
+        if not config.root_dir:
+            raise ValueError("root_dir is required for filesystem")
 
-    api.auth(refresh_token=config.refresh_token)
+        root_dir = Path(config.root_dir)
 
-    illust_root_dir = Path(config.root_dir)
+        storage = StorageFilesystem(root_dir=root_dir)
+    elif config.storage_type == "s3":
+        prefix = None
+
+        root_dir_string = config.root_dir
+        if root_dir_string:
+            # 末尾にスラッシュを追加
+            if not root_dir_string.endswith("/"):
+                root_dir_string += "/"
+
+            prefix = root_dir_string
+
+        if not config.storage_s3_bucket:
+            raise ValueError("storage_s3_bucket is required for s3")
+
+        storage = StorageS3(
+            bucket_name=config.storage_s3_bucket,
+            prefix=prefix,
+            aws_region=config.storage_s3_region,
+            aws_endpoint_url=config.storage_s3_endpoint_url,
+            force_path_style=config.storage_s3_force_path_style,
+            aws_access_key_id=config.storage_s3_access_key_id,
+            aws_secret_access_key=config.storage_s3_secret_access_key,
+            aws_session_token=config.storage_s3_session_token,
+        )
+    else:
+        raise ValueError(f"Unknown storage_type: {config.storage_type}")
 
     illust_meta_dao = IllustMetaDao(
-        storage=StorageFilesystem(root_dir=illust_root_dir),
+        storage=storage,
     )
 
     illust_binary_dao = IllustBinaryDao(
-        storage=StorageFilesystem(root_dir=illust_root_dir),
+        storage=storage,
     )
+
+    api = AppPixivAPI()
+
+    api.auth(refresh_token=config.refresh_token)
 
     result = api.search_illust(
         word=config.keyword,
@@ -373,7 +465,15 @@ async def __run_search_tag(config: SearchTagConfig) -> None:
 async def run_search_tag(args: Namespace) -> None:
     await __run_search_tag(
         config=SearchTagConfig(
+            storage_type=args.storage_type,
             root_dir=args.root_dir,
+            storage_s3_bucket=args.storage_s3_bucket,
+            storage_s3_region=args.storage_s3_region,
+            storage_s3_endpoint_url=args.storage_s3_endpoint_url,
+            storage_s3_force_path_style=args.storage_s3_force_path_style,
+            storage_s3_access_key_id=args.storage_s3_access_key_id,
+            storage_s3_secret_access_key=args.storage_s3_secret_access_key,
+            storage_s3_session_token=args.storage_s3_session_token,
             refresh_token=args.refresh_token,
             keyword=args.keyword,
             recrawl=args.recrawl,
@@ -394,9 +494,53 @@ async def main() -> None:
     parser = ArgumentParser()
 
     subparsers = parser.add_subparsers()
+
     subparser_bookmark = subparsers.add_parser("bookmark")
     subparser_bookmark.add_argument(
-        "--root_dir", type=Path, default=os.environ.get("XIVBKMDL_ROOT_DIR")
+        "--storage_type",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_TYPE") or "filesystem",
+        choices=["filesystem", "s3"],
+    )
+    subparser_bookmark.add_argument(
+        "--root_dir",
+        type=str,
+        default=os.environ.get("XIVBKMDL_ROOT_DIR"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_bucket",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_BUCKET"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_region",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_REGION"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_endpoint_url",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_ENDPOINT_URL"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_force_path_style",
+        action="store_true",
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_access_key_id",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_ACCESS_KEY_ID"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_secret_access_key",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_SECRET_ACCESS_KEY"),
+    )
+    subparser_bookmark.add_argument(
+        "--storage_s3_session_token",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_SESSION_TOKEN"),
     )
     subparser_bookmark.add_argument(
         "--refresh_token", type=str, default=os.environ.get("XIVBKMDL_REFRESH_TOKEN")
@@ -424,7 +568,50 @@ async def main() -> None:
 
     subparser_search_tag = subparsers.add_parser("search_tag")
     subparser_search_tag.add_argument(
-        "--root_dir", type=Path, default=os.environ.get("XIVBKMDL_ROOT_DIR")
+        "--storage_type",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_TYPE") or "filesystem",
+        choices=["filesystem", "s3"],
+    )
+    subparser_search_tag.add_argument(
+        "--root_dir",
+        type=str,
+        default=os.environ.get("XIVBKMDL_ROOT_DIR"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_bucket",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_BUCKET"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_region",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_REGION"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_endpoint_url",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_ENDPOINT_URL"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_force_path_style",
+        action="store_true",
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_access_key_id",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_ACCESS_KEY_ID"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_secret_access_key",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_SECRET_ACCESS_KEY"),
+    )
+    subparser_search_tag.add_argument(
+        "--storage_s3_session_token",
+        type=str,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_SESSION_TOKEN"),
     )
     subparser_search_tag.add_argument(
         "--refresh_token", type=str, default=os.environ.get("XIVBKMDL_REFRESH_TOKEN")
