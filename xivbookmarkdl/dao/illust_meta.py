@@ -49,9 +49,6 @@ class IllustMetaDao:
 
                     return None
         except StorageDownloadNotFoundError as outer_error:
-            logger.error(f"Failed to download illust meta: {outer_error}")
-            logger.exception(outer_error)
-
             return None
 
         return IllustMetaWithId(
