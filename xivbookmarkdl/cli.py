@@ -524,8 +524,8 @@ async def main() -> None:
     )
     subparser_bookmark.add_argument(
         "--storage_s3_force_path_style",
-        action="store_true",
-        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE"),
+        type=bool,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE") == "true",
     )
     subparser_bookmark.add_argument(
         "--storage_s3_access_key_id",
@@ -595,18 +595,18 @@ async def main() -> None:
     )
     subparser_search_tag.add_argument(
         "--storage_s3_force_path_style",
-        action="store_true",
-        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE"),
+        type=bool,
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE") == "true",
     )
     subparser_search_tag.add_argument(
         "--storage_s3_access_key_id",
         type=str,
-        default=os.environ.get("XIVBKMDL_STORAGE_S3_ACCESS_KEY_ID"),
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_ACCESS_KEY_ID") or None,
     )
     subparser_search_tag.add_argument(
         "--storage_s3_secret_access_key",
         type=str,
-        default=os.environ.get("XIVBKMDL_STORAGE_S3_SECRET_ACCESS_KEY"),
+        default=os.environ.get("XIVBKMDL_STORAGE_S3_SECRET_ACCESS_KEY") or None,
     )
     subparser_search_tag.add_argument(
         "--storage_s3_session_token",
