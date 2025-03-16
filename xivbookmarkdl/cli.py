@@ -10,10 +10,10 @@ from typing import Any
 
 from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
-from xivbookmarkdl.dao.illust_binary import IllustBinaryDao
-from xivbookmarkdl.storage.filesystem import StorageFilesystem
 
+from .dao.illust_binary import IllustBinaryDao
 from .dao.illust_meta import IllustMetaDao
+from .storage.filesystem import StorageFilesystem
 
 UTC = timezone.utc
 logger = logging.getLogger("xivbookmarkdl")
