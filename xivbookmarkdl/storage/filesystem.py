@@ -15,6 +15,10 @@ class StorageFilesystem(Storage):
     ):
         self.root_dir = root_dir
 
+    async def iter_with_prefix(self, prefix: str) -> AsyncIterator[str]:
+        for p in self.root_dir.glob(f"{prefix}*"):
+            yield str(p.relative_to(self.root_dir))
+
     @asynccontextmanager
     async def download(self, key: str) -> AsyncIterator[Path]:
         with TemporaryDirectory() as _tmpdir:

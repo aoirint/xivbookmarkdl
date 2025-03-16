@@ -43,6 +43,21 @@ class StorageS3(Storage):
             ),
         )
 
+    async def iter_with_prefix(self, prefix: str) -> AsyncIterator[str]:
+        s3_client = self._create_s3_client()
+
+        paginator = s3_client.get_paginator("list_objects_v2")
+
+        for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                if "Key" not in obj:
+                    continue
+
+                yield obj["Key"]
+
     @asynccontextmanager
     async def download(self, key: str) -> AsyncIterator[Path]:
         s3_client = self._create_s3_client()
