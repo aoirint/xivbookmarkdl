@@ -1,18 +1,20 @@
-import json
+import logging
 import os
 import time
-import traceback
-from abc import ABC, abstractmethod
 from argparse import ArgumentParser, Namespace
-from dataclasses import dataclass
+from asyncio import iscoroutinefunction
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
+from xivbookmarkdl.storage.filesystem import StorageFilesystem
+
+from .dao.illust_meta import IllustMetaDao
 
 UTC = timezone.utc
+logger = logging.getLogger("xivbookmarkdl")
 
 
 class BookmarkConfig(BaseModel):
@@ -36,88 +38,12 @@ class SearchTagConfig(BaseModel):
     retry_interval: float
 
 
-@dataclass
-class IllustMeta:
-    illust_id: int
-    user_id: int
-    meta_dict: Dict[str, Any]
-    fetched_at: datetime
-
-
-class IllustMetaRepo(ABC):
-    @abstractmethod
-    def get_illust_meta(self, illust_id: int, user_id: int) -> Optional[IllustMeta]: ...
-
-    @abstractmethod
-    def update_illust_meta(self, illust_meta: IllustMeta) -> None: ...
-
-
-class FileIllustMetaRepo(IllustMetaRepo):
-    def __init__(self, root_dir_path: Path):
-        self.root_dir_path = root_dir_path
-
-    def get_illust_meta(self, illust_id: int, user_id: int) -> Optional[IllustMeta]:
-        illust_dir = Path(self.root_dir_path, str(user_id), str(illust_id))
-
-        meta_path = illust_dir / "illust.json"
-        if not meta_path.exists():
-            return None
-
-        with open(meta_path, "r", encoding="utf-8") as fp:
-            try:
-                illust_meta_dict = json.load(fp)
-            except ValueError:  # json.decoder.JSONDecodeError
-                traceback.print_exc()
-                return None
-
-        return IllustMeta(
-            illust_id=illust_id,
-            user_id=user_id,
-            meta_dict=illust_meta_dict["illust"],
-            fetched_at=illust_meta_dict["found_at"],
-        )
-
-    def update_illust_meta(self, illust_meta: IllustMeta) -> None:
-        illust_dir = Path(
-            self.root_dir_path, str(illust_meta.user_id), str(illust_meta.illust_id)
-        )
-        illust_dir.mkdir(exist_ok=True, parents=True)
-
-        meta_path = illust_dir / "illust.json"
-
-        found_at_utc = illust_meta.fetched_at.astimezone(UTC)
-        if meta_path.exists():
-            with open(meta_path, "r", encoding="utf-8") as fp:
-                old_meta = {}
-
-                try:
-                    old_meta = json.load(fp)
-                except ValueError:  # json.decoder.JSONDecodeError
-                    traceback.print_exc()
-
-                if "found_at" in old_meta:
-                    found_at_utc = datetime.fromisoformat(
-                        old_meta["found_at"]
-                    ).astimezone(UTC)
-
-        with open(meta_path, "w", encoding="utf-8") as fp:
-            json.dump(
-                {
-                    "illust": illust_meta.meta_dict,
-                    "found_at": found_at_utc.isoformat(),
-                    "updated_at": illust_meta.fetched_at.astimezone(UTC).isoformat(),
-                },
-                fp,
-                ensure_ascii=False,
-            )
-
-
-def download_illusts_desc(
+async def download_illusts_desc(
     api: AppPixivAPI,
     output_dir: Path,
     first_result: Any,
-    next_func: Callable,
-    illust_meta_repo: IllustMetaRepo,
+    next_func: Any,
+    illust_meta_dao: IllustMetaDao,
     ignore_existence: bool,
     updated_at_utc: datetime,
     download_interval: float = 1.0,
@@ -149,7 +75,7 @@ def download_illusts_desc(
         for illust in illusts:
             user = illust.user
 
-            old_meta = illust_meta_repo.get_illust_meta(
+            old_meta = await illust_meta_dao.get_illust_meta(
                 illust_id=int(illust.id), user_id=int(user.id)
             )
             if old_meta is not None:
@@ -229,21 +155,20 @@ def download_illusts_desc(
                 if api.download(image_url, path=str(illust_dir)):
                     time.sleep(download_interval)
 
-        illust_meta = IllustMeta(
+        await illust_meta_dao.upsert_illust_meta(
             illust_id=int(illust.id),
             user_id=int(user.id),
-            meta_dict=illust,
-            fetched_at=updated_at_utc,
+            illust=illust,
+            found_at=updated_at_utc,
         )
-        illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
 
 
-def download_illusts_asc(
+async def download_illusts_asc(
     api: AppPixivAPI,
     output_dir: Path,
     first_result: Any,
-    next_func: Callable,
-    illust_meta_repo: IllustMetaRepo,
+    next_func: Any,
+    illust_meta_dao: IllustMetaDao,
     ignore_existence: bool,
     updated_at_utc: datetime,
     download_interval: float = 1.0,
@@ -276,7 +201,7 @@ def download_illusts_asc(
         for illust_index, illust in enumerate(illusts):
             user = illust.user
 
-            old_meta = illust_meta_repo.get_illust_meta(
+            old_meta = await illust_meta_dao.get_illust_meta(
                 illust_id=int(illust.id), user_id=int(user.id)
             )
             if old_meta is not None:
@@ -325,13 +250,12 @@ def download_illusts_asc(
                     if api.download(image_url, path=str(illust_dir)):
                         time.sleep(download_interval)
 
-            illust_meta = IllustMeta(
+            await illust_meta_dao.upsert_illust_meta(
                 illust_id=int(illust.id),
                 user_id=int(user.id),
-                meta_dict=illust,
-                fetched_at=updated_at_utc,
+                illust=illust,
+                found_at=updated_at_utc,
             )
-            illust_meta_repo.update_illust_meta(illust_meta=illust_meta)
 
         next_qs = api.parse_qs(result.next_url)
         if not next_qs:
@@ -350,24 +274,27 @@ def download_illusts_asc(
         page_index += 1
 
 
-def __run_bookmark(config: BookmarkConfig) -> None:
+async def __run_bookmark(config: BookmarkConfig) -> None:
     api = AppPixivAPI()
 
     api.auth(refresh_token=config.refresh_token)
 
     illust_root_dir = Path(config.root_dir)
-    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
+
+    illust_meta_dao = IllustMetaDao(
+        storage=StorageFilesystem(root_dir=illust_root_dir),
+    )
 
     result = api.user_bookmarks_illust(user_id=config.user_id, req_auth=True)
 
     updated_at_utc = datetime.now(UTC)  # utc aware current time
 
-    download_illusts_desc(
+    await download_illusts_desc(
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
         next_func=api.user_bookmarks_illust,
-        illust_meta_repo=illust_meta_repo,
+        illust_meta_dao=illust_meta_dao,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
         download_interval=config.download_interval,
@@ -376,8 +303,8 @@ def __run_bookmark(config: BookmarkConfig) -> None:
     )
 
 
-def run_bookmark(args: Namespace) -> None:
-    __run_bookmark(
+async def run_bookmark(args: Namespace) -> None:
+    await __run_bookmark(
         config=BookmarkConfig(
             root_dir=args.root_dir,
             refresh_token=args.refresh_token,
@@ -390,13 +317,16 @@ def run_bookmark(args: Namespace) -> None:
     )
 
 
-def __run_search_tag(config: SearchTagConfig) -> None:
+async def __run_search_tag(config: SearchTagConfig) -> None:
     api = AppPixivAPI()
 
     api.auth(refresh_token=config.refresh_token)
 
     illust_root_dir = Path(config.root_dir)
-    illust_meta_repo = FileIllustMetaRepo(root_dir_path=illust_root_dir)
+
+    illust_meta_dao = IllustMetaDao(
+        storage=StorageFilesystem(root_dir=illust_root_dir),
+    )
 
     result = api.search_illust(
         word=config.keyword,
@@ -411,12 +341,12 @@ def __run_search_tag(config: SearchTagConfig) -> None:
     if config.desc:
         download_func = download_illusts_desc
 
-    download_func(
+    await download_func(
         api=api,
         output_dir=illust_root_dir,
         first_result=result,
         next_func=api.search_illust,
-        illust_meta_repo=illust_meta_repo,
+        illust_meta_dao=illust_meta_dao,
         ignore_existence=config.recrawl,
         updated_at_utc=updated_at_utc,
         download_interval=config.download_interval,
@@ -425,8 +355,8 @@ def __run_search_tag(config: SearchTagConfig) -> None:
     )
 
 
-def run_search_tag(args: Namespace) -> None:
-    __run_search_tag(
+async def run_search_tag(args: Namespace) -> None:
+    await __run_search_tag(
         config=SearchTagConfig(
             root_dir=args.root_dir,
             refresh_token=args.refresh_token,
@@ -440,7 +370,12 @@ def run_search_tag(args: Namespace) -> None:
     )
 
 
-def main() -> None:
+async def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     parser = ArgumentParser()
 
     subparsers = parser.add_subparsers()
@@ -504,6 +439,9 @@ def main() -> None:
     args = parser.parse_args()
 
     if hasattr(args, "handler"):
-        args.handler(args)
+        if iscoroutinefunction(args.handler):
+            await args.handler(args)
+        else:
+            args.handler(args)
     else:
         parser.print_help()
