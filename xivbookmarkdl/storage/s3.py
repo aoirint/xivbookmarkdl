@@ -34,7 +34,7 @@ class StorageS3(Storage):
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_session_token = aws_session_token
 
-    def _create_s3_client(self) -> S3Client:
+    def _create_s3_client(self) -> "S3Client":
         return boto3.client(
             "s3",
             region_name=self.aws_region,
