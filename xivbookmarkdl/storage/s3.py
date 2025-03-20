@@ -83,9 +83,9 @@ class StorageS3(Storage):
                     Key=bucket_key,
                     Filename=str(file),
                 )
-            except s3_client.exceptions.NoSuchKey:
+            except s3_client.exceptions.NoSuchKey as error:
                 # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
-                raise StorageDownloadNotFoundError
+                raise StorageDownloadNotFoundError from error
 
             yield file
 

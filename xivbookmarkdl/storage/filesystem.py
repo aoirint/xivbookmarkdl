@@ -32,8 +32,8 @@ class StorageFilesystem(Storage):
                     self.root_dir / key,
                     file,
                 )
-            except FileNotFoundError:
-                raise StorageDownloadNotFoundError
+            except FileNotFoundError as error:
+                raise StorageDownloadNotFoundError from error
 
             yield file
 

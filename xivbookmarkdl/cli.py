@@ -195,10 +195,6 @@ async def download_illusts_asc(
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
 ) -> None:
-    # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
-    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
-    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])  # noqa: B950
-
     result = first_result
 
     # search and download illusts in asc order
