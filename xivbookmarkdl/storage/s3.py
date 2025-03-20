@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 import boto3
+import botocore.exceptions
 from botocore.client import Config
 
 from .base import Storage, StorageDownloadNotFoundError
@@ -83,9 +84,17 @@ class StorageS3(Storage):
                     Key=bucket_key,
                     Filename=str(file),
                 )
-            except s3_client.exceptions.NoSuchKey as error:
-                # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
-                raise StorageDownloadNotFoundError from error
+            except botocore.exceptions.ClientError as error:
+                error_obj = error.response.get("Error", {})
+                error_code = error_obj.get("Code", None)
+
+                if error_code == "404":
+                    # botocore.exceptions.ClientError: An error occurred (404) when calling the HeadObject operation: Not Found  # noqa: E501
+                    # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
+                    raise StorageDownloadNotFoundError from error
+
+                # その他のエラーの場合はそのままraiseする
+                raise
 
             yield file
 
