@@ -1,4 +1,3 @@
-import json
 from datetime import UTC, datetime
 from logging import getLogger
 from pathlib import Path
@@ -86,10 +85,8 @@ class IllustMetaDao:
             )
 
             with meta_file.open(mode="w", encoding="utf-8") as fp:
-                json.dump(
-                    illust_meta.model_dump(),
-                    fp,
-                    ensure_ascii=False,
+                fp.write(
+                    illust_meta.model_dump_json(),
                 )
 
             await self.storage.upload(

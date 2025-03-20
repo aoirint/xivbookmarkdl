@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -8,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal
 
+from dotenv import load_dotenv
 from pixivpy3 import AppPixivAPI
 from pydantic import BaseModel
 
@@ -177,7 +179,7 @@ async def download_illusts_desc(
         await illust_meta_dao.upsert_illust_meta(
             illust_id=int(illust.id),
             user_id=int(user.id),
-            illust=illust,
+            illust=json.loads(json.dumps(illust)),
             found_at=updated_at_utc,
         )
 
@@ -272,7 +274,7 @@ async def download_illusts_asc(
             await illust_meta_dao.upsert_illust_meta(
                 illust_id=int(illust.id),
                 user_id=int(user.id),
-                illust=illust,
+                illust=json.loads(json.dumps(illust)),
                 found_at=updated_at_utc,
             )
 
@@ -480,6 +482,8 @@ async def run_search_tag(args: Namespace) -> None:
 
 
 async def main() -> None:
+    load_dotenv()
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
