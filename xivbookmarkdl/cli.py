@@ -17,7 +17,6 @@ from .storage.base import Storage
 from .storage.filesystem import StorageFilesystem
 from .storage.s3 import StorageS3
 
-UTC = UTC
 logger = logging.getLogger("xivbookmarkdl")
 
 
