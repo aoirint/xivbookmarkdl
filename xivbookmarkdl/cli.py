@@ -3,7 +3,7 @@ import os
 import time
 from argparse import ArgumentParser, Namespace
 from asyncio import iscoroutinefunction
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal
@@ -17,7 +17,6 @@ from .storage.base import Storage
 from .storage.filesystem import StorageFilesystem
 from .storage.s3 import StorageS3
 
-UTC = timezone.utc
 logger = logging.getLogger("xivbookmarkdl")
 
 
@@ -195,11 +194,6 @@ async def download_illusts_asc(
     page_interval: float = 3.0,
     retry_interval: float = 10.0,
 ) -> None:
-
-    # downloaded_user_ids = set([path.name for path in output_dir.iterdir()])
-    # downloaded_user_illust_ids = set([(user_id, path.name) for user_id in downloaded_user_ids for path in Path(output_dir, user_id).iterdir()])  # noqa: B950
-    # downloaded_illust_ids = set([illust_id for user_id, illust_id in downloaded_user_illust_ids])  # noqa: B950
-
     result = first_result
 
     # search and download illusts in asc order
@@ -207,7 +201,7 @@ async def download_illusts_asc(
     while True:
         illusts = result.illusts
 
-        print(f"Page {page_index+1} (found: {len(illusts)})")
+        print(f"Page {page_index + 1} (found: {len(illusts)})")
 
         for illust_index, illust in enumerate(illusts):
             user = illust.user
@@ -233,8 +227,8 @@ async def download_illusts_asc(
                         continue
 
             print(
-                f"Page {page_index+1}",
-                f"Index {illust_index+1}/{len(illusts)}",
+                f"Page {page_index + 1}",
+                f"Index {illust_index + 1}/{len(illusts)}",
                 user.id,
                 user.name,
                 illust.id,

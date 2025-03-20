@@ -70,3 +70,12 @@ poetry install
 
 poetry update
 ```
+
+### Code format
+
+```shell
+poetry run ruff check --fix
+poetry run ruff format
+
+poetry run mypy .
+```

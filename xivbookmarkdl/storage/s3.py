@@ -1,8 +1,9 @@
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, AsyncIterator
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.client import Config
@@ -82,9 +83,9 @@ class StorageS3(Storage):
                     Key=bucket_key,
                     Filename=str(file),
                 )
-            except s3_client.exceptions.NoSuchKey:
+            except s3_client.exceptions.NoSuchKey as error:
                 # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
-                raise StorageDownloadNotFoundError
+                raise StorageDownloadNotFoundError from error
 
             yield file
 

@@ -2,11 +2,16 @@ name: Lint
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
-env:
-  PYTHON_VERSION: '3.11.9'
+defaults:
+  run:
+    shell: bash
 
 jobs:
   lint:
@@ -16,19 +21,38 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Poetry
-        shell: bash
         run: pipx install poetry
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "${{ env.PYTHON_VERSION }}"
+          python-version: '3.11'
           cache: 'poetry'
 
       - name: Install Dependencies
-        shell: bash
         run: poetry install
 
+      - name: Restore lint cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .ruff_cache
+            .mypy_cache
+          key: "${{ runner.os }}-lint-${{ github.sha }}"
+          restore-keys: |
+            ${{ runner.os }}-lint-
+
       - name: Run lint
-        shell: bash
-        run: poetry run pysen run lint
+        run: poetry run ruff check
+
+      - name: Run type check
+        run: poetry run mypy .
+
+      - name: Save lint cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .ruff_cache
+            .mypy_cache
+          key: "${{ runner.os }}-lint--${{ github.sha }}"
