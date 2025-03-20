@@ -1,6 +1,6 @@
 # xivbookmarkdl
 
-- Python 3.11
+- Python 3.12
 - <https://github.com/upbit/pixivpy>
 
 

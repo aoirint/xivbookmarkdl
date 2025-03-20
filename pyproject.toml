@@ -24,7 +24,7 @@ authors = ["aoirint <aoirint@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "~3.12"
 pydantic = "^2.7.1"
 pixivpy3 = "^3.7.5"
 boto3 = "^1.37.13"
