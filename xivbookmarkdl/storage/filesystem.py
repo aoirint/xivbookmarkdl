@@ -1,9 +1,9 @@
 import asyncio
 import shutil
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncIterator
 
 from .base import Storage, StorageDownloadNotFoundError
 
