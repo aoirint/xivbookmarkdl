@@ -1,6 +1,6 @@
 # xivbookmarkdl
 
-- Python 3.11
+- Python 3.12
 - <https://github.com/upbit/pixivpy>
 
 
@@ -35,7 +35,21 @@ chown -R 1000:1000 ./data
 
 XIVBKMDL_REFRESH_TOKEN=
 XIVBKMDL_USER_ID=
+
+# Filesystem
+XIVBKMDL_STORAGE_TYPE=filesystem
 XIVBKMDL_ROOT_DIR=/data
+
+# S3
+# XIVBKMDL_STORAGE_TYPE=s3
+# XIVBKMDL_ROOT_DIR=prefix/
+# XIVBKMDL_STORAGE_S3_BUCKET=my-bucket
+# XIVBKMDL_STORAGE_S3_REGION=local
+# XIVBKMDL_STORAGE_S3_ENDPOINT_URL=http://127.0.0.1:9000
+# XIVBKMDL_STORAGE_S3_FORCE_PATH_STYLE=true
+# XIVBKMDL_STORAGE_S3_ACCESS_KEY_ID=
+# XIVBKMDL_STORAGE_S3_SECRET_ACCESS_KEY=
+# XIVBKMDL_STORAGE_S3_SESSION_TOKEN=
 ```
 
 ### 5. Execute download
@@ -55,4 +69,13 @@ We use [Poetry](https://python-poetry.org/docs/#installation) as Python dependen
 poetry install
 
 poetry update
+```
+
+### Code format
+
+```shell
+poetry run ruff check --fix
+poetry run ruff format
+
+poetry run mypy .
 ```

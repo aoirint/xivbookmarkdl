@@ -1,17 +1,20 @@
-[tool.pysen]
-version = "0.11"
+[tool.ruff]
+target-version = "py312"
+line-length = 88
 
-[tool.pysen.lint]
-enable_black = true
-enable_flake8 = true
-enable_isort = true
-enable_mypy = true
-mypy_preset = "strict"
-line_length = 88
-py_version = "py311"
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "UP",  # pyupgrade
+]
 
-  [[tool.pysen.lint.mypy_targets]]
-    paths = ["."]
+[tool.mypy]
+strict = true
 
 [tool.poetry]
 name = "xivbookmarkdl"
@@ -21,7 +24,7 @@ authors = ["aoirint <aoirint@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "~3.11"
+python = "~3.12"
 pydantic = "^2.7.1"
 pixivpy3 = "^3.7.5"
 boto3 = "^1.37.13"
@@ -29,14 +32,10 @@ python-dotenv = "^1.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
-pysen = "^0.11.0"
-black = "^24.4.2"
-isort = "^5.13.2"
-flake8 = "^7.0.0"
-flake8-bugbear = "^24.4.26"
 mypy = "^1.10.0"
 pytest = "^8.2.1"
 boto3-stubs = {extras = ["s3"], version = "^1.37.13"}
+ruff = "^0.11.0"
 
 [build-system]
 requires = ["poetry-core"]

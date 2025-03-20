@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager
 from pathlib import Path
-from typing import AsyncIterator
 
 
 class StorageDownloadNotFoundError(Exception):

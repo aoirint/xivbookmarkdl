@@ -1,20 +1,24 @@
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncIterator
+from typing import TYPE_CHECKING
 
 import boto3
 from botocore.client import Config
-from mypy_boto3_s3 import S3Client
 
 from .base import Storage, StorageDownloadNotFoundError
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
 
 
 class StorageS3(Storage):
     def __init__(
         self,
         bucket_name: str,
+        prefix: str | None,
         aws_region: str | None,
         aws_endpoint_url: str | None,
         force_path_style: bool,
@@ -23,6 +27,7 @@ class StorageS3(Storage):
         aws_session_token: str | None,
     ):
         self.bucket_name = bucket_name
+        self.prefix = prefix
         self.aws_region = aws_region
         self.aws_endpoint_url = aws_endpoint_url
         self.force_path_style = force_path_style
@@ -30,7 +35,7 @@ class StorageS3(Storage):
         self.aws_secret_access_key = aws_secret_access_key
         self.aws_session_token = aws_session_token
 
-    def _create_s3_client(self) -> S3Client:
+    def _create_s3_client(self) -> "S3Client":
         return boto3.client(
             "s3",
             region_name=self.aws_region,
@@ -48,7 +53,9 @@ class StorageS3(Storage):
 
         paginator = s3_client.get_paginator("list_objects_v2")
 
-        for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+        bucket_prefix = self.prefix + prefix if self.prefix else prefix
+
+        for page in paginator.paginate(Bucket=self.bucket_name, Prefix=bucket_prefix):
             if "Contents" not in page:
                 continue
 
@@ -67,25 +74,29 @@ class StorageS3(Storage):
 
             file = tmpdir / "a"
 
+            bucket_key = self.prefix + key if self.prefix else key
+
             try:
                 await asyncio.to_thread(
                     s3_client.download_file,
                     Bucket=self.bucket_name,
-                    Key=key,
+                    Key=bucket_key,
                     Filename=str(file),
                 )
-            except s3_client.exceptions.NoSuchKey:
+            except s3_client.exceptions.NoSuchKey as error:
                 # ファイルが存在しない場合、StorageDownloadNotFoundErrorをraiseする
-                raise StorageDownloadNotFoundError
+                raise StorageDownloadNotFoundError from error
 
             yield file
 
     async def upload(self, source_path: Path, dest_key: str) -> None:
         s3_client = self._create_s3_client()
 
+        bucket_dest_key = self.prefix + dest_key if self.prefix else dest_key
+
         await asyncio.to_thread(
             s3_client.upload_file,
             Filename=str(source_path),
             Bucket=self.bucket_name,
-            Key=dest_key,
+            Key=bucket_dest_key,
         )

@@ -1,9 +1,9 @@
 import asyncio
 import shutil
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import AsyncIterator
 
 from .base import Storage, StorageDownloadNotFoundError
 
@@ -32,8 +32,8 @@ class StorageFilesystem(Storage):
                     self.root_dir / key,
                     file,
                 )
-            except FileNotFoundError:
-                raise StorageDownloadNotFoundError
+            except FileNotFoundError as error:
+                raise StorageDownloadNotFoundError from error
 
             yield file
 
