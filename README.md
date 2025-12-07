@@ -57,16 +57,16 @@ docker run --rm --env-file ./.env -v "./data:/data" aoirint/xivbookmarkdl
 
 ## Development
 
+### Setup
+
 - Python 3.12
 - uv 0.9
-
-### Setup
 
 ```shell
 uv sync --frozen --all-groups
 ```
 
-### Local execution
+### Run
 
 ```shell
 uv run python -m xivbookmarkdl
@@ -86,3 +86,17 @@ uv run mypy .
 1. Bump version with `uv version <new_version>`.
 2. Commit changes, create a pull request and merge into `main` branch.
 3. GitHub Release and Docker image wlll be created automatically by GitHub Actions.
+
+### GitHub Actions management
+
+We use pinact to manage GitHub Actions versions.
+
+- [pinact](https://github.com/suzuki-shunsuke/pinact)
+
+```shell
+# Lock
+pinact run
+
+# Update
+pinact run --update
+```
