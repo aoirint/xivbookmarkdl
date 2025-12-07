@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/aoirint/liveinfo_api_middleware"
+Repository = "https://github.com/aoirint/xivbookmarkdl"
 
 [dependency-groups]
 dev = [
