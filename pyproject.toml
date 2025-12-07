@@ -1,5 +1,4 @@
 [tool.ruff]
-target-version = "py312"
 line-length = 88
 
 [tool.ruff.lint]
@@ -16,27 +15,41 @@ select = [
 [tool.mypy]
 strict = true
 
-[tool.poetry]
+[tool.uv]
+package = true
+add-bounds = "exact"
+
+[tool.setuptools]
+packages = ["xivbookmarkdl"]
+
+[project]
 name = "xivbookmarkdl"
 version = "0.0.0"
-description = ""
-authors = ["aoirint <aoirint@gmail.com>"]
+description = "Bookmark saver"
 readme = "README.md"
+authors = [
+    {name = "aoirint", email = "aoirint@gmail.com"}
+]
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic==2.10.6",
+  "pixivpy3==3.7.5",
+  "boto3==1.37.16",
+  "python-dotenv==1.0.1",
+]
 
-[tool.poetry.dependencies]
-python = "~3.12"
-pydantic = "^2.7.1"
-pixivpy3 = "^3.7.5"
-boto3 = "^1.37.13"
-python-dotenv = "^1.0.1"
+[project.urls]
+Repository = "https://github.com/aoirint/xivbookmarkdl"
 
-
-[tool.poetry.group.dev.dependencies]
-mypy = "^1.10.0"
-pytest = "^8.2.1"
-boto3-stubs = {extras = ["s3"], version = "^1.37.13"}
-ruff = "^0.11.0"
+[dependency-groups]
+dev = [
+  "mypy==1.15.0",
+  "pytest==8.3.5",
+  "boto3-stubs[s3]==1.37.16",
+  "ruff==0.11.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

@@ -1,9 +1,5 @@
 # xivbookmarkdl
 
-- Python 3.12
-- <https://github.com/upbit/pixivpy>
-
-
 ## Features
 
 - Download bookmarked illusts in asc order by bookmarked time
@@ -61,21 +57,20 @@ docker run --rm --env-file ./.env -v "./data:/data" aoirint/xivbookmarkdl
 
 ## Development
 
+- Python 3.12
+- uv 0.9
+
 ### Dependency management
 
-We use [Poetry](https://python-poetry.org/docs/#installation) as Python dependency manager.
-
 ```shell
-poetry install
-
-poetry update
+uv sync --frozen-lockfile
 ```
 
 ### Code format
 
 ```shell
-poetry run ruff check --fix
-poetry run ruff format
+uv run ruff check --fix
+uv run ruff format
 
-poetry run mypy .
+uv run mypy .
 ```
