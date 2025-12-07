@@ -60,10 +60,16 @@ docker run --rm --env-file ./.env -v "./data:/data" aoirint/xivbookmarkdl
 - Python 3.12
 - uv 0.9
 
-### Dependency management
+### Setup
 
 ```shell
-uv sync --frozen-lockfile
+uv sync --frozen --all-groups
+```
+
+### Local execution
+
+```shell
+uv run python -m xivbookmarkdl
 ```
 
 ### Code format
@@ -74,3 +80,9 @@ uv run ruff format
 
 uv run mypy .
 ```
+
+### Release
+
+1. Bump version with `uv version <new_version>`.
+2. Commit changes, create a pull request and merge into `main` branch.
+3. GitHub Release and Docker image wlll be created automatically by GitHub Actions.
