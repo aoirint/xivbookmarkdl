@@ -83,7 +83,7 @@ uv run mypy .
 
 ### Release
 
-1. Bump version with `uv version <new_version>`.
+1. Bump version with `uv version {new_version}`.
 2. Commit changes, create a pull request and merge into `main` branch.
 3. GitHub Release and Docker image wlll be created automatically by GitHub Actions.
 
