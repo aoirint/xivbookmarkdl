@@ -19,8 +19,9 @@ strict = true
 package = true
 add-bounds = "exact"
 
-[tool.setuptools]
-packages = ["xivbookmarkdl"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["xivbookmarkdl", "xivbookmarkdl.*"]
 
 [project]
 name = "xivbookmarkdl"

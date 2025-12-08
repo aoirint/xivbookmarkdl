@@ -41,9 +41,17 @@ COPY ./pyproject.toml uv.lock /opt/xivbookmarkdl/
 RUN --mount=type=cache,target=/root/.cache/uv <<EOF
     cd /opt/xivbookmarkdl
 
-    UV_PROJECT_ENVIRONMENT="/opt/python_venv" uv sync --locked --no-dev --no-editable --no-install-project
+    UV_PROJECT_ENVIRONMENT="/opt/python_venv" uv sync --frozen --no-dev --no-editable --no-install-project
 EOF
 
+# Install project as editable package
+COPY ./xivbookmarkdl /opt/xivbookmarkdl/xivbookmarkdl
+RUN --mount=type=cache,target=/root/.cache/uv <<EOF
+    cd /opt/xivbookmarkdl
+
+    # Install the application into the virtual environment
+    UV_PROJECT_ENVIRONMENT="/opt/python_venv" uv sync --frozen --no-dev
+EOF
 
 # Runtime stage
 FROM uv-python-base AS runtime
@@ -52,16 +60,8 @@ FROM uv-python-base AS runtime
 COPY --from=build-venv /opt/python_venv /opt/python_venv
 ENV PATH="/opt/python_venv/bin:${PATH}"
 
-# Copy application files
-COPY ./pyproject.toml /opt/xivbookmarkdl/pyproject.toml
-COPY ./xivbookmarkdl /opt/xivbookmarkdl/xivbookmarkdl
-
-# Pre-compile Python bytecode
-RUN <<EOF
-    cd /opt/xivbookmarkdl
-
-    python -m compileall ./xivbookmarkdl
-EOF
+# Copy application code for editable installation
+COPY --from=build-venv /opt/xivbookmarkdl /opt/xivbookmarkdl
 
 USER "1000:1000"
 
