@@ -65,4 +65,4 @@ EOF
 
 USER "1000:1000"
 
-CMD [ "python", "-m", "xivbookmarkdl" ]
+ENTRYPOINT [ "python", "-m", "xivbookmarkdl" ]
