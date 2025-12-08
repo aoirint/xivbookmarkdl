@@ -1,3 +1,8 @@
-.git/
-__pycache__/
-.env*
+**/.git/
+**/.env*
+
+**/.github/
+**/__pycache__/
+**/.venv/
+**/.mypy_cache/
+**/.ruff_cache/

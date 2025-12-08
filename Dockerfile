@@ -63,6 +63,13 @@ ENV PATH="/opt/python_venv/bin:${PATH}"
 # Copy application code for editable installation
 COPY --from=build-venv /opt/xivbookmarkdl /opt/xivbookmarkdl
 
+# Pre-compile Python bytecode
+RUN <<EOF
+    cd /opt/xivbookmarkdl
+
+    python -m compileall ./xivbookmarkdl
+EOF
+
 USER "1000:1000"
 
 ENTRYPOINT [ "python", "-m", "xivbookmarkdl" ]
